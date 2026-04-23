@@ -1,0 +1,85 @@
+.shell-container {
+  min-height: 100vh;
+  background: transparent;
+}
+
+.shell-sidenav {
+  width: 280px;
+  padding: 1rem 0.75rem;
+  border-right: 1px solid color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
+}
+
+.brand-block {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin: 0.75rem 0.5rem 1.5rem;
+  padding: 1rem;
+  border-radius: 24px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--mat-sys-primary) 14%, transparent),
+    color-mix(in srgb, var(--mat-sys-secondary) 18%, transparent)
+  );
+}
+
+.brand-block .material-symbols-outlined {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--mat-sys-primary) 18%, transparent);
+  color: var(--mat-sys-primary);
+  font-size: 28px;
+}
+
+.brand-block p {
+  margin: 0.25rem 0 0;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.9rem;
+}
+
+.active-link {
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+}
+
+.shell-content {
+  background: transparent;
+}
+
+.shell-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  gap: 0.75rem;
+  padding: 0 1rem;
+  backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--mat-sys-surface) 78%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
+}
+
+.toolbar-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.page-content {
+  padding: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .page-content {
+    padding: 1rem;
+  }
+
+  .shell-toolbar {
+    padding: 0 0.5rem;
+  }
+}

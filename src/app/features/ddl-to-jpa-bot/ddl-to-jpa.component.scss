@@ -1,0 +1,160 @@
+.ddl-layout {
+  display: grid;
+}
+
+.converter-card {
+  border-radius: 28px;
+  box-shadow: none;
+  border: 1px solid color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
+  background: color-mix(in srgb, var(--mat-sys-surface-container-low) 92%, transparent);
+}
+
+.conversion-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.conversion-toolbar mat-form-field {
+  flex: 1;
+  min-width: 220px;
+}
+
+.panes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.editor-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.pane-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 40px;
+}
+
+.pane-toolbar h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.button-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  line-height: 1;
+}
+
+.button-content .material-symbols-outlined {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.code-editor {
+  position: relative;
+  min-height: 420px;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
+  background: #0f172a;
+}
+
+.highlight-layer,
+.code-editor textarea,
+.output-editor textarea {
+  width: 100%;
+  min-height: 420px;
+  margin: 0;
+  padding: 1.25rem;
+  border: 0;
+  font: 500 0.95rem/1.7 'Courier New', monospace;
+  white-space: pre-wrap;
+  overflow: auto;
+}
+
+.highlight-layer {
+  pointer-events: none;
+  color: #e2e8f0;
+}
+
+.code-editor textarea {
+  position: absolute;
+  inset: 0;
+  resize: none;
+  background: transparent;
+  color: transparent;
+  caret-color: #f8fafc;
+}
+
+.output-editor textarea {
+  position: absolute;
+  inset: 0;
+  resize: none;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+}
+
+button span {
+  vertical-align: middle;
+}
+
+:host ::ng-deep .token.keyword {
+  color: #7dd3fc;
+}
+
+:host ::ng-deep .token.type {
+  color: #f9a8d4;
+}
+
+:host ::ng-deep .token.string {
+  color: #86efac;
+}
+
+:host ::ng-deep .token.identifier {
+  color: #fde68a;
+}
+
+:host ::ng-deep .token.annotation {
+  color: #c4b5fd;
+}
+
+:host ::ng-deep .token.decorator {
+  color: #fca5a5;
+}
+
+@media (max-width: 1080px) {
+  .conversion-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .panes {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .pane-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .highlight-layer,
+  .code-editor textarea,
+  .output-editor textarea {
+    min-height: 320px;
+  }
+}

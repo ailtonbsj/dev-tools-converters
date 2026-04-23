@@ -1,0 +1,64 @@
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr);
+  gap: 1.5rem;
+}
+
+.hero-card,
+.feature-card {
+  border-radius: 28px;
+  box-shadow: none;
+  border: 1px solid color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
+}
+
+.hero-card {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--mat-sys-primary) 14%, transparent), transparent 30%),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--mat-sys-primary-container) 58%, transparent),
+      color-mix(in srgb, var(--mat-sys-surface-container-high) 94%, transparent)
+    );
+}
+
+.hero-card mat-card-content {
+  padding: 2rem;
+}
+
+.hero-card h1 {
+  margin: 1.25rem 0 0.75rem;
+  font-size: clamp(2rem, 3vw, 3.4rem);
+  line-height: 1;
+}
+
+.hero-card p {
+  max-width: 56ch;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.feature-card {
+  background: color-mix(in srgb, var(--mat-sys-surface-container-low) 92%, transparent);
+}
+
+.feature-card ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  line-height: 1.8;
+}
+
+.hero-actions {
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 960px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-card mat-card-content {
+    padding: 1.5rem;
+  }
+}

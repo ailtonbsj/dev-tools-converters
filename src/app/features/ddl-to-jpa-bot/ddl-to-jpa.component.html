@@ -1,0 +1,67 @@
+<section class="ddl-layout">
+  <mat-card class="converter-card">
+    <mat-card-header>
+      <mat-card-title>DDL para JPA</mat-card-title>
+      <mat-card-subtitle>Converta comandos CREATE TABLE em entidades Java com JPA.</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <div class="conversion-toolbar">
+        <mat-form-field appearance="outline">
+          <mat-label>Dialeto SQL</mat-label>
+          <mat-select [ngModel]="dialect()" (ngModelChange)="dialect.set($event)">
+            <mat-option value="postgresql">PostgreSQL</mat-option>
+            <mat-option value="oracle">Oracle</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <button mat-raised-button color="primary" type="button" (click)="convertToJpa()">
+          <span class="button-content">
+            <span class="material-symbols-outlined">auto_fix_high</span>
+            <span>Converter para JPA</span>
+          </span>
+        </button>
+      </div>
+
+      <div class="panes">
+        <section class="editor-pane">
+          <div class="pane-toolbar pane-toolbar-left">
+            <h2>SQL de entrada</h2>
+            <button mat-stroked-button type="button" (click)="pasteFromClipboard()">
+              <span class="button-content">
+                <span class="material-symbols-outlined">content_paste</span>
+                <span>Colar código</span>
+              </span>
+            </button>
+          </div>
+
+          <div class="code-editor" aria-label="Editor SQL">
+            <pre class="highlight-layer" [innerHTML]="highlightedSql()"></pre>
+            <textarea
+              [ngModel]="ddlInput()"
+              (ngModelChange)="onSqlInput($event)"
+              spellcheck="false"
+              aria-label="Texto SQL"></textarea>
+          </div>
+        </section>
+
+        <section class="editor-pane">
+          <div class="pane-toolbar pane-toolbar-right">
+            <h2>Entidade JPA gerada</h2>
+            <button mat-stroked-button type="button" (click)="copyGeneratedCode()" [disabled]="!generatedEntity()">
+              <span class="button-content">
+                <span class="material-symbols-outlined">content_copy</span>
+                <span>Copiar código</span>
+              </span>
+            </button>
+          </div>
+
+          <div class="code-editor output-editor" aria-label="Código Java gerado">
+            <pre class="highlight-layer" [innerHTML]="highlightedJava()"></pre>
+            <textarea [value]="generatedEntity()" readonly spellcheck="false" aria-label="Código Java"></textarea>
+          </div>
+        </section>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</section>

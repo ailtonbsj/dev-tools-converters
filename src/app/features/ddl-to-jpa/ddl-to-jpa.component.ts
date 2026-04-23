@@ -160,8 +160,8 @@ async function buildEntityFromDdl(ddl: string, dialect: Dialect): Promise<string
 	const tableElts = createStmt.tableElts;
 
 	const schema = {} as any;
-	schema.schema = createStmt.relation.schemaname;
-	schema.table = createStmt.relation.relname;
+	schema.schema = createStmt.relation.schemaname.toLowerCase();
+	schema.table = createStmt.relation.relname.toLowerCase();
 	schema.columns = [];
 
 	for(const elt of tableElts) {
@@ -172,7 +172,7 @@ async function buildEntityFromDdl(ddl: string, dialect: Dialect): Promise<string
 			schemaCol.isNullable = true;
 			schemaCol.isUnique = false;
 			schemaCol.isPrimary = false;
-			schemaCol.column =  columnDef.colname;
+			schemaCol.column =  columnDef.colname.toLowerCase();
 			schemaCol.type = columnDef.typeName.names.at(-1).String.sval;
 			if((/serial/i).test(schemaCol.type)) schemaCol.autoincrement = true;
 
@@ -251,9 +251,9 @@ public class ${entityName} implements Serializable {\n\n`;
 	for(const col of schema.columns) {
 		const unique = col.isUnique ? `, unique = true` : '';
 		let normalizedColunm = col.column.toLowerCase()
-			.replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_/g,'') + ((/^cd_/i).test(col.column.toLowerCase()) ? 'Id' : '');
+			.replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^hr_/g,'') + ((/^cd_/i).test(col.column.toLowerCase()) ? 'Id' : '');
 		normalizedColunm = col.column.toLowerCase().includes('ci_') ? 'id' : normalizedColunm;
-		const columnName = snakeToPascalCase(normalizedColunm);
+		const columnName = snakeToCamelCase(normalizedColunm);
 		let columnType = 'UNKNOWN_TYPE';
 		let len = '';
 		switch (col.type.toLowerCase()) {

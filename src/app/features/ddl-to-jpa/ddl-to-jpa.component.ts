@@ -133,16 +133,20 @@ function escapeHtml(value: string): string {
     .replaceAll('>', '&gt;');
 }
 
-function capitalCase(str: string) {
-    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+function capitalLetter(str: string) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function camelCase(str: string) {
-    return str.split('_').map((t, i) => i === 0 ? t : capitalCase(t)).join('');
+function decapitalLetter(str: string) {
+  return str.charAt(0).toLocaleLowerCase() + str.slice(1);
 }
 
-function pascalCase(str: string) {
-    return capitalCase(camelCase(str));
+function snakeToCamelCase(snake: string) {
+  return snake.split('_').map((t, i) => i === 0 ? decapitalLetter(t) : capitalLetter(t)).join('');
+}
+
+function snakeToPascalCase(snake: string) {
+  return snake.split('_').map(t => capitalLetter(t)).join('');
 }
 
 async function buildEntityFromDdl(ddl: string, dialect: Dialect): Promise<string> {
@@ -227,7 +231,7 @@ async function buildEntityFromDdl(ddl: string, dialect: Dialect): Promise<string
 		}
 	}
 
-	const entityName = pascalCase(schema.table.replace('tb_', ''));
+	const entityName = snakeToPascalCase(schema.table.replace('tb_', ''));
 	let entityJPA = `
 import jakarta.persistence.*;
 import lombok.*;
@@ -249,7 +253,7 @@ public class ${entityName} implements Serializable {\n\n`;
 		let normalizedColunm = col.column.toLowerCase()
 			.replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_/g,'') + ((/^cd_/i).test(col.column.toLowerCase()) ? 'Id' : '');
 		normalizedColunm = col.column.toLowerCase().includes('ci_') ? 'id' : normalizedColunm;
-		const columnName = camelCase(normalizedColunm);
+		const columnName = snakeToPascalCase(normalizedColunm);
 		let columnType = 'UNKNOWN_TYPE';
 		let len = '';
 		switch (col.type.toLowerCase()) {

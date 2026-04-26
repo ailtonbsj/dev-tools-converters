@@ -1,8 +1,8 @@
 <section class="ddl-layout">
   <mat-card class="converter-card">
     <mat-card-header>
-      <mat-card-title>DDL para JPA</mat-card-title>
-      <mat-card-subtitle>Converta comandos CREATE TABLE em entidades Java com JPA.</mat-card-subtitle>
+      <mat-card-title style="margin: 5px 0;">DDL para Java</mat-card-title>
+      <mat-card-subtitle style="margin: 5px 0;">Converta comandos CREATE TABLE em objetos Java.</mat-card-subtitle>
     </mat-card-header>
 
     <mat-card-content>
@@ -14,11 +14,19 @@
             <mat-option value="oracle">Oracle</mat-option>
           </mat-select>
         </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Código gerado</mat-label>
+          <mat-select [ngModel]="generatedCodeType()" (ngModelChange)="generatedCodeType.set($event)">
+            <mat-option value="jpaEntity">Entidade JPA</mat-option>
+            <mat-option value="mybatisEntity">Entidade MyBatis</mat-option>
+            <mat-option value="mybatisDAO">DAO MyBatis</mat-option>
+          </mat-select>
+        </mat-form-field>
 
-        <button mat-raised-button color="primary" type="button" (click)="convertToJpa()">
+        <button mat-raised-button color="primary" type="button" (click)="convertTo()">
           <span class="button-content">
             <span class="material-symbols-outlined">auto_fix_high</span>
-            <span>Converter para JPA</span>
+            <span>Conveter</span>
           </span>
         </button>
       </div>

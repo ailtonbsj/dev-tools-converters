@@ -1,3 +1,4 @@
+import { C } from '@angular/cdk/keycodes';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -9,20 +10,14 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { PgParser } from '@supabase/pg-parser';
+import { DatabaseTable, TableColunm } from './database-table.model';
 
 type Dialect = 'postgresql' | 'oracle';
-
-type ColumnDefinition = {
-  columnName: string;
-  javaName: string;
-  sqlType: string;
-  javaType: string;
-  nullable: boolean;
-  primaryKey: boolean;
-};
+const GeneratedCodeEnum = { jpaEntity: 'jpaEntity', mybatisEntity: 'mybatisEntity', mybatisDAO: 'mybatisDAO' } as const;
+type GeneratedCodeType = typeof GeneratedCodeEnum[keyof typeof GeneratedCodeEnum];
 
 @Component({
-  selector: 'app-ddl-to-jpa',
+  selector: 'app-ddl-to-java',
   standalone: true,
   imports: [
     CommonModule,
@@ -34,14 +29,15 @@ type ColumnDefinition = {
     MatSelectModule,
     MatSnackBarModule
   ],
-  templateUrl: './ddl-to-jpa.component.html',
-  styleUrl: './ddl-to-jpa.component.scss',
+  templateUrl: './ddl-to-java.component.html',
+  styleUrl: './ddl-to-java.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class DdlToJpaComponent {
+export class DdlToJavaComponent {
+  protected readonly generatedCodeType = signal<GeneratedCodeType>(GeneratedCodeEnum.jpaEntity);
   protected readonly dialect = signal<Dialect>('postgresql');
-  protected readonly ddlInput = signal(`CREATE TABLE customer_account (
-  id BIGINT PRIMARY KEY,
+  protected readonly ddlInput = signal(`CREATE TABLE public.customer_account (
+  my_primary_key BIGINT PRIMARY KEY,
   customer_name VARCHAR(150) NOT NULL,
   email VARCHAR(180),
   active BOOLEAN DEFAULT TRUE,
@@ -64,11 +60,24 @@ export class DdlToJpaComponent {
     }
   }
 
-  protected async convertToJpa(): Promise<void> {
+  protected async convertTo(): Promise<void> {
     try {
-      const entity = await buildEntityFromDdl(this.ddlInput(), this.dialect());
-      this.generatedEntity.set(entity);
-      this.snackBar.open('Entidade JPA gerada com sucesso.', 'Fechar', { duration: 2500 });
+      if(this.generatedCodeType() === GeneratedCodeEnum.jpaEntity) {
+        const entity = await buildEntityJPAFromDdl(this.ddlInput(), this.dialect());
+        this.generatedEntity.set(entity);
+        this.snackBar.open('Entidade JPA gerada com sucesso.', 'Fechar', { duration: 2500 });
+      } else if(this.generatedCodeType() === GeneratedCodeEnum.mybatisEntity) {
+        const entity = await buildEntityMyBatisFromDdl(this.ddlInput(), this.dialect());
+        this.generatedEntity.set(entity);
+        this.snackBar.open('Entidade MyBatis gerada com sucesso.', 'Fechar', { duration: 2500 });
+      } else if(this.generatedCodeType() === GeneratedCodeEnum.mybatisDAO) {
+        const entity = await buildMyBatisDAOFromDdl(this.ddlInput(), this.dialect());
+        this.generatedEntity.set(entity);
+        this.snackBar.open('DAO MyBatis gerada com sucesso.', 'Fechar', { duration: 2500 });
+      } else {
+        this.snackBar.open('A conversão está disponível.', 'Fechar', { duration: 3000 });
+        return;
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Falha ao converter o DDL.';
       this.snackBar.open(message, 'Fechar', { duration: 4000 });
@@ -149,17 +158,27 @@ function snakeToPascalCase(snake: string) {
   return snake.split('_').map(t => capitalLetter(t)).join('');
 }
 
-async function buildEntityFromDdl(ddl: string, dialect: Dialect): Promise<string> {
-	const parser = new PgParser({ version: 17 });
+function normalizeColumnOfTable(snakeColunm: string) {
+  let res = snakeColunm.toLowerCase().replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^hr_/g,'') +
+    ((/^cd_/i).test(snakeColunm.toLowerCase()) ? 'Id' : '');
+		return snakeColunm.toLowerCase().includes('ci_') ? 'id' : res;
+}
+
+function columnToFieldJava(columnOfTable: string) {
+  return snakeToCamelCase(normalizeColumnOfTable(columnOfTable));
+}
+
+async function dllToAst(ddl: string): Promise<DatabaseTable> {
+  const parser = new PgParser({ version: 17 });
 	const { tree } = await parser.parse(ddl);
 	if(tree == null || tree.stmts == null || tree.stmts[0].stmt == null) {
     window.alert('Falha ao converter SQL. Verifique se é um DDL Create válido.');
-    return "";
+    return {} as DatabaseTable;
   }
 	const createStmt = (tree.stmts[0].stmt as any).CreateStmt;
 	const tableElts = createStmt.tableElts;
 
-	const schema = {} as any;
+	const schema = {} as DatabaseTable;
 	schema.schema = createStmt.relation.schemaname.toLowerCase();
 	schema.table = createStmt.relation.relname.toLowerCase();
 	schema.columns = [];
@@ -168,7 +187,7 @@ async function buildEntityFromDdl(ddl: string, dialect: Dialect): Promise<string
 		if(elt.ColumnDef) {
 			const columnDef = elt.ColumnDef;
 
-			let schemaCol = {} as any;
+			let schemaCol = {} as TableColunm;
 			schemaCol.isNullable = true;
 			schemaCol.isUnique = false;
 			schemaCol.isPrimary = false;
@@ -183,18 +202,19 @@ async function buildEntityFromDdl(ddl: string, dialect: Dialect): Promise<string
 			if(columnDef.constraints) {
 				for(const constraint of columnDef.constraints) {
 					if(constraint.Constraint.contype === 'CONSTR_NOTNULL') schemaCol.isNullable = false;
+          if(constraint.Constraint.contype === 'CONSTR_PRIMARY') schemaCol.isPrimary = true;
 				}
 			}
 			schema.columns.push(schemaCol);
 		} else if (elt.Constraint) {
 			if(elt.Constraint.contype === 'CONSTR_UNIQUE') {
 				for(const key of elt.Constraint.keys) {
-					const schemaCol = schema.columns.find((c: any) => c.column === key.String.sval);
+					const schemaCol = schema.columns.find((c: any) => c.column === key.String.sval.toLowerCase());
 					if(schemaCol) schemaCol.isUnique = true;
 				}
 			} else if(elt.Constraint.contype === 'CONSTR_PRIMARY') {
 				for(const key of elt.Constraint.keys) {
-					const schemaCol = schema.columns.find((c: any) => c.column === key.String.sval);
+					const schemaCol = schema.columns.find((c: any) => c.column === key.String.sval.toLowerCase());
 					if(schemaCol) {
 						schemaCol.isPrimary = true;
 						schemaCol.isNullable = false;
@@ -203,9 +223,10 @@ async function buildEntityFromDdl(ddl: string, dialect: Dialect): Promise<string
 				}
 			} else if(elt.Constraint.contype === 'CONSTR_FOREIGN') {
 				for(const attr of elt.Constraint.fk_attrs) {
-					const schemaCol = schema.columns.find((c: any) => c.column === attr.String.sval);
+					const schemaCol = schema.columns.find((c: any) => c.column === attr.String.sval.toLowerCase());
 					const refTable = elt.Constraint.pktable;
-					schemaCol.references = refTable.schemaname + '.' + refTable.relname + '(' + elt.Constraint.pk_attrs.map((a: any) => a.String.sval).join(',') + ')';
+					if(schemaCol)
+            schemaCol.references = refTable.schemaname + '.' + refTable.relname + '(' + elt.Constraint.pk_attrs.map((a: any) => a.String.sval).join(',') + ')';
 				}
 			} else if(elt.Constraint.contype === 'CONSTR_CHECK') { // Oracle constraints
 				const rawExpr = elt.Constraint.raw_expr;
@@ -213,13 +234,13 @@ async function buildEntityFromDdl(ddl: string, dialect: Dialect): Promise<string
 					if(rawExpr.NullTest.arg.ColumnRef) {
 						const col = rawExpr.NullTest.arg.ColumnRef.fields[0].String.sval.toLowerCase();
 						const schemaCol = schema.columns.find((c: any) => c.column.toLowerCase() === col);
-						schemaCol.isNullable = false;
+						if(schemaCol) schemaCol.isNullable = false;
 					} else window.alert('Simplifique as constraints mais complexas!');
 				} else if(rawExpr.A_Expr && rawExpr.A_Expr.kind === 'AEXPR_IN') {
 					const col = rawExpr.A_Expr.lexpr.ColumnRef.fields[0].String.sval.toLowerCase();
 					const schemaCol = schema.columns.find((c: any) => c.column.toLowerCase() === col);
 					const enumObj = rawExpr.A_Expr.rexpr.List.items.map((i: any) => i.A_Const.sval.sval);
-					if(enumObj instanceof Array) schemaCol.allowValues = [...enumObj];
+					if(schemaCol && enumObj instanceof Array) schemaCol.allowValues = [...enumObj];
 				} else if(rawExpr.A_Expr && rawExpr.A_Expr.kind === 'AEXPR_OP') {
 					window.alert('Constraints de operações não são analisadas!');
 				} else {
@@ -230,6 +251,11 @@ async function buildEntityFromDdl(ddl: string, dialect: Dialect): Promise<string
 			}
 		}
 	}
+  return schema;
+}
+
+async function buildEntityJPAFromDdl(ddl: string, dialect: Dialect): Promise<string> {
+  const schema = await dllToAst(ddl);
 
 	const entityName = snakeToPascalCase(schema.table.replace('tb_', ''));
 	let entityJPA = `
@@ -321,3 +347,184 @@ public class ${entityName} implements Serializable {\n\n`;
 
   return entityJPA;
 }
+
+async function buildEntityMyBatisFromDdl(ddl: string, dialect: Dialect): Promise<string> {
+  const schema = await dllToAst(ddl);
+
+	const entityName = snakeToPascalCase(schema.table.replace('tb_', ''));
+	let entity = `
+import lombok.*;
+
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@NoArgsConstructor
+public class ${entityName} implements Serializable {\n\n`;
+
+	for(const col of schema.columns) {
+		const unique = col.isUnique ? `, unique = true` : '';
+		let normalizedColunm = col.column.toLowerCase()
+			.replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^hr_/g,'') + ((/^cd_/i).test(col.column.toLowerCase()) ? 'Id' : '');
+		normalizedColunm = col.column.toLowerCase().includes('ci_') ? 'id' : normalizedColunm;
+		const columnName = snakeToCamelCase(normalizedColunm);
+		let columnType = 'UNKNOWN_TYPE';
+		let len = '';
+		switch (col.type.toLowerCase()) {
+			case 'varchar2':
+			case 'varchar':
+			case 'bpchar':
+			case 'text':
+				columnType = col.len === 1 ? 'Character' : 'String';
+				len = col.len ? `, length = ${col.len}` : '';
+				break;
+			case 'numeric':
+			case 'real':
+			case 'double precision':
+			case 'number':
+				if(col.scale > 0) {
+					columnType = 'BigDecimal';
+					len = col.len ? `, precision = ${col.len}, scale = ${col.scale}`: '';
+				} else if(col.len > 18) {
+					columnType = 'BigDecimal';
+					len = col.len ? `, precision = ${col.len}, scale = ${col.scale}`: '';
+				}
+				else if(col.len > 9) columnType = 'Long';
+				else columnType = 'Integer';
+				break;
+			case 'bigserial':
+			case 'bigint':
+			case 'serial8':
+			case 'int8':
+				columnType = 'Long';
+				break;
+			case 'serial':
+			case 'smallserial':
+			case 'integer':
+			case 'smallint':
+			case 'serial4':
+			case 'int4':
+				columnType = 'Integer';
+				break;
+			case 'timestamp':
+				columnType = 'LocalDateTime';
+				break;
+			case 'date':
+				columnType = dialect === 'oracle' ? 'LocalDateTime' : 'LocalDate';
+				break;
+			case 'bool':
+			case 'boolean':
+				columnType = 'Boolean';
+				break;
+			default:
+				console.log(col.type);
+		}
+		const refs = col.references ? `\t// References: ${col.references}\n` : '';
+		const enumVals = col.allowValues ? `\t// Enum: ${col.allowValues.join(', ')}\n` : '';
+		const primarykey = col.isPrimary ? `\t// Primary Key\n` : '';
+
+		let colStr = `${refs}${enumVals}${primarykey}`;
+    colStr += `\t// Column(name = "${col.column}", nullable = ${col.isNullable}${len}${unique})\n`;
+		colStr += `\tprivate ${columnType} ${columnName};\n\n`;
+
+		entity += colStr;
+	}
+
+	entity += '}';
+
+  return entity;
+}
+
+async function buildMyBatisDAOFromDdl(ddl: string, dialect: Dialect): Promise<string> {
+  const schema = await dllToAst(ddl);
+
+	const entityName = snakeToPascalCase(schema.table.replace('tb_', ''));
+	let dao = `
+import org.apache.ibatis.annotations.*;
+
+@Mapper
+public interface ${entityName}DAO {
+
+  @Update("""
+    update ${schema.schema}.${schema.table} set\n`;
+
+  let setCols = [];
+  let returnType = 'Long';
+	for(const col of schema.columns) {
+		//const unique = col.isUnique ? `, unique = true` : '';
+		const columnName = columnToFieldJava(col.column);
+		let columnType = 'UNKNOWN_TYPE';
+		let len = '';
+		switch (col.type.toLowerCase()) {
+			case 'varchar2':
+			case 'varchar':
+			case 'bpchar':
+			case 'text':
+				columnType = col.len === 1 ? 'Character' : 'String';
+				len = col.len ? `, length = ${col.len}` : '';
+				break;
+			case 'numeric':
+			case 'real':
+			case 'double precision':
+			case 'number':
+				if(col.scale > 0) {
+					columnType = 'BigDecimal';
+					len = col.len ? `, precision = ${col.len}, scale = ${col.scale}`: '';
+				} else if(col.len > 18) {
+					columnType = 'BigDecimal';
+					len = col.len ? `, precision = ${col.len}, scale = ${col.scale}`: '';
+				}
+				else if(col.len > 9) columnType = 'Long';
+				else columnType = 'Integer';
+				break;
+			case 'bigserial':
+			case 'bigint':
+			case 'serial8':
+			case 'int8':
+				columnType = 'Long';
+				break;
+			case 'serial':
+			case 'smallserial':
+			case 'integer':
+			case 'smallint':
+			case 'serial4':
+			case 'int4':
+				columnType = 'Integer';
+				break;
+			case 'timestamp':
+				columnType = 'LocalDateTime';
+				break;
+			case 'date':
+				columnType = dialect === 'oracle' ? 'LocalDateTime' : 'LocalDate';
+				break;
+			case 'bool':
+			case 'boolean':
+				columnType = 'Boolean';
+				break;
+			default:
+				console.log(col.type);
+		}
+		const refs = col.references ? `\t// References: ${col.references}\n` : '';
+		const enumVals = col.allowValues ? `\t// Enum: ${col.allowValues.join(', ')}\n` : '';
+		const primarykey = col.isPrimary ? `\t@Id\n` : '';
+		const autoincrement = col.autoincrement ? `\t@GeneratedValue(strategy = GenerationType.IDENTITY)\n` : '';
+
+		// let colStr = `${refs}${enumVals}${primarykey}${autoincrement}`;
+		// colStr += `\t@Column(name = "${col.column}", nullable = ${col.isNullable}${len}${unique})\n`;
+		// colStr += `\tprivate ${columnType} ${columnName};\n\n`;
+    if(col.isPrimary) returnType = columnType;
+    else setCols.push(`      ${col.column} = #\{${columnName}\}`);
+	}
+  dao += setCols.join(',\n');
+
+  const primaryColumn = schema.columns.find(c => c.isPrimary);
+  let wherePredicate = 'id = #{id}';
+  if(primaryColumn) wherePredicate = `${primaryColumn.column} = #{${columnToFieldJava(primaryColumn.column)}}`;
+	dao += `\n    where ${wherePredicate}\n  """)\n  ${returnType} update(${entityName} model);\n\n}`;
+
+  return dao;
+}
+

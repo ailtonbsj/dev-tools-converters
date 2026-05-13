@@ -159,13 +159,68 @@ function snakeToPascalCase(snake: string) {
 }
 
 function normalizeColumnOfTable(snakeColunm: string) {
-  let res = snakeColunm.toLowerCase().replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^hr_/g,'') +
+  let res = snakeColunm.toLowerCase().replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^hr_|^vr_|^vl_/g,'') +
     ((/^cd_/i).test(snakeColunm.toLowerCase()) ? 'Id' : '');
 		return snakeColunm.toLowerCase().includes('ci_') ? 'id' : res;
 }
 
 function columnToFieldJava(columnOfTable: string) {
   return snakeToCamelCase(normalizeColumnOfTable(columnOfTable));
+}
+
+function columnToTypeJava(col: TableColunm, dialect: Dialect) {
+  let columnType = 'UNKNOWN_TYPE';
+  // let len = '';
+  switch (col.type.toLowerCase()) {
+    case 'varchar2':
+    case 'varchar':
+    case 'bpchar':
+    case 'text':
+      columnType = col.len === 1 ? 'Character' : 'String';
+      // len = col.len ? `, length = ${col.len}` : '';
+      break;
+    case 'numeric':
+    case 'real':
+    case 'double precision':
+    case 'number':
+      if(col.scale > 0) {
+        columnType = 'BigDecimal';
+        // len = col.len ? `, precision = ${col.len}, scale = ${col.scale}`: '';
+      } else if(col.len > 18) {
+        columnType = 'BigDecimal';
+        // len = col.len ? `, precision = ${col.len}, scale = ${col.scale}`: '';
+      }
+      else if(col.len > 9) columnType = 'Long';
+      else columnType = 'Integer';
+      break;
+    case 'bigserial':
+    case 'bigint':
+    case 'serial8':
+    case 'int8':
+      columnType = 'Long';
+      break;
+    case 'serial':
+    case 'smallserial':
+    case 'integer':
+    case 'smallint':
+    case 'serial4':
+    case 'int4':
+      columnType = 'Integer';
+      break;
+    case 'timestamp':
+      columnType = 'LocalDateTime';
+      break;
+    case 'date':
+      columnType = dialect === 'oracle' ? 'LocalDateTime' : 'LocalDate';
+      break;
+    case 'bool':
+    case 'boolean':
+      columnType = 'Boolean';
+      break;
+    default:
+      console.log(col.type);
+  }
+  return columnType;
 }
 
 async function dllToAst(ddl: string): Promise<DatabaseTable> {
@@ -440,91 +495,78 @@ public class ${entityName} implements Serializable {\n\n`;
 
 async function buildMyBatisDAOFromDdl(ddl: string, dialect: Dialect): Promise<string> {
   const schema = await dllToAst(ddl);
-
 	const entityName = snakeToPascalCase(schema.table.replace('tb_', ''));
-	let dao = `
+  const entityNameCamel = snakeToCamelCase(schema.table.replace('tb_', ''));
+  const columns = schema.columns;
+  const primaries = columns.filter(col => col.isPrimary);
+  const notPrimaries = columns.filter(col => !col.isPrimary);
+  const maxColLength = columns.reduce((prev, curr) => Math.max(curr.column.length, prev), 0);
+  const results = columns.map(col => {
+    const field = columnToFieldJava(col.column);
+    const space = ''.padStart(maxColLength - field.length - 1);
+    return `@Result(property = "${field}",${space}column = "${col.column}")`;
+  });
+  const aliases = columns.map(col => `${col.column.padEnd(maxColLength, ' ')} ${columnToFieldJava(col.column)}`);
+  const primariesPredicate = primaries.length === 1 ?
+    primaries.map(p => `${p.column} = #{id}`) :
+    primaries.map(p => `${p.column} = #{${columnToFieldJava(p.column)}}`);
+  const primariesField = primaries.length === 1 ?
+    primaries.map(p => `${columnToTypeJava(p, dialect) } id`) :
+    primaries.map(p => `${columnToTypeJava(p, dialect) } ${columnToFieldJava(p.column)}`);
+  const insertPredicate = columns.map(col => `#{${columnToFieldJava(col.column)}}`);
+  const updatePredicate = notPrimaries.map(col => {
+    const space = ''.padStart(maxColLength - col.column.length + 1);
+    return `${col.column}${space}= #{${columnToFieldJava(col.column)}}`;
+  });
+
+  let daoTemplate = `
 import org.apache.ibatis.annotations.*;
+
+import java.util.List;
+import java.util.Optional;
 
 @Mapper
 public interface ${entityName}DAO {
 
-  @Update("""
-    update ${schema.schema}.${schema.table} set\n`;
+    @Select("select * from ${schema.schema}.${schema.table}")
+    @Results(id = "${entityNameCamel}ResultMap", value = {
+      ${results.join(',\n      ')}
+    })
+    List<${entityName}> findAll();
 
-  let setCols = [];
-  let returnType = 'Long';
-	for(const col of schema.columns) {
-		//const unique = col.isUnique ? `, unique = true` : '';
-		const columnName = columnToFieldJava(col.column);
-		let columnType = 'UNKNOWN_TYPE';
-		let len = '';
-		switch (col.type.toLowerCase()) {
-			case 'varchar2':
-			case 'varchar':
-			case 'bpchar':
-			case 'text':
-				columnType = col.len === 1 ? 'Character' : 'String';
-				len = col.len ? `, length = ${col.len}` : '';
-				break;
-			case 'numeric':
-			case 'real':
-			case 'double precision':
-			case 'number':
-				if(col.scale > 0) {
-					columnType = 'BigDecimal';
-					len = col.len ? `, precision = ${col.len}, scale = ${col.scale}`: '';
-				} else if(col.len > 18) {
-					columnType = 'BigDecimal';
-					len = col.len ? `, precision = ${col.len}, scale = ${col.scale}`: '';
-				}
-				else if(col.len > 9) columnType = 'Long';
-				else columnType = 'Integer';
-				break;
-			case 'bigserial':
-			case 'bigint':
-			case 'serial8':
-			case 'int8':
-				columnType = 'Long';
-				break;
-			case 'serial':
-			case 'smallserial':
-			case 'integer':
-			case 'smallint':
-			case 'serial4':
-			case 'int4':
-				columnType = 'Integer';
-				break;
-			case 'timestamp':
-				columnType = 'LocalDateTime';
-				break;
-			case 'date':
-				columnType = dialect === 'oracle' ? 'LocalDateTime' : 'LocalDate';
-				break;
-			case 'bool':
-			case 'boolean':
-				columnType = 'Boolean';
-				break;
-			default:
-				console.log(col.type);
-		}
-		const refs = col.references ? `\t// References: ${col.references}\n` : '';
-		const enumVals = col.allowValues ? `\t// Enum: ${col.allowValues.join(', ')}\n` : '';
-		const primarykey = col.isPrimary ? `\t@Id\n` : '';
-		const autoincrement = col.autoincrement ? `\t@GeneratedValue(strategy = GenerationType.IDENTITY)\n` : '';
+    @Select("""
+      select
+        ${aliases.join(',\n        ')}
+      from
+          ${schema.schema}.${schema.table}
+      where
+          ${primariesPredicate.join(', ')}
+    """)
+    Optional<${entityName}> findById(${primariesField.join(', ')});
 
-		// let colStr = `${refs}${enumVals}${primarykey}${autoincrement}`;
-		// colStr += `\t@Column(name = "${col.column}", nullable = ${col.isNullable}${len}${unique})\n`;
-		// colStr += `\tprivate ${columnType} ${columnName};\n\n`;
-    if(col.isPrimary) returnType = columnType;
-    else setCols.push(`      ${col.column} = #\{${columnName}\}`);
-	}
-  dao += setCols.join(',\n');
+    @Insert("""
+      insert into ${schema.schema}.${schema.table} values (
+        ${insertPredicate.join(', ')}
+      )
+    """)
+    int insert(${entityName} model);
 
-  const primaryColumn = schema.columns.find(c => c.isPrimary);
-  let wherePredicate = 'id = #{id}';
-  if(primaryColumn) wherePredicate = `${primaryColumn.column} = #{${columnToFieldJava(primaryColumn.column)}}`;
-	dao += `\n    where ${wherePredicate}\n  """)\n  ${returnType} update(${entityName} model);\n\n}`;
+    @Update("""
+      update ${schema.schema}.${schema.table} set
+        ${updatePredicate.join(',\n        ')}
+      where
+        ${primariesPredicate.join(', ')}
+    """)
+    int update(${entityName} model);
 
-  return dao;
+    @Delete("delete from ${schema.schema}.${schema.table} where ${primariesPredicate.join(', ')}")
+    int deleteById(${primariesField.join(', ')});
+
+    // findByExamplePaginatedAndSorted
+    // findByTermPaginatedAndSorted
+}
+  `;
+
+  return daoTemplate;
 }
 

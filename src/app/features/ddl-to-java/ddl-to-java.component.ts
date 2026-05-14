@@ -13,7 +13,7 @@ import { PgParser } from '@supabase/pg-parser';
 import { DatabaseTable, TableColunm } from './database-table.model';
 
 type Dialect = 'postgresql' | 'oracle';
-const GeneratedCodeEnum = { jpaEntity: 'jpaEntity', mybatisEntity: 'mybatisEntity', mybatisDAO: 'mybatisDAO' } as const;
+const GeneratedCodeEnum = { jpaEntity: 'jpaEntity', mybatisEntity: 'mybatisEntity', mybatisDAO: 'mybatisDAO', springDTO: 'springDTO' } as const;
 type GeneratedCodeType = typeof GeneratedCodeEnum[keyof typeof GeneratedCodeEnum];
 
 @Component({
@@ -74,8 +74,12 @@ export class DdlToJavaComponent {
         const entity = await buildMyBatisDAOFromDdl(this.ddlInput(), this.dialect());
         this.generatedEntity.set(entity);
         this.snackBar.open('DAO MyBatis gerada com sucesso.', 'Fechar', { duration: 2500 });
+      } else if(this.generatedCodeType() === GeneratedCodeEnum.springDTO) {
+        const entity = await buildspringDTOFromDdl(this.ddlInput(), this.dialect());
+        this.generatedEntity.set(entity);
+        this.snackBar.open('DTO MyBatis gerada com sucesso.', 'Fechar', { duration: 2500 });
       } else {
-        this.snackBar.open('A conversão está disponível.', 'Fechar', { duration: 3000 });
+        this.snackBar.open('A conversão não está disponível.', 'Fechar', { duration: 3000 });
         return;
       }
     } catch (error) {
@@ -306,6 +310,18 @@ async function dllToAst(ddl: string): Promise<DatabaseTable> {
 			}
 		}
 	}
+
+  const commentColStmts = (tree.stmts as [any])
+    .filter(stmtItem => stmtItem.stmt != null && stmtItem.stmt.CommentStmt != null && stmtItem.stmt.CommentStmt.objtype === 'OBJECT_COLUMN').map(s => s.stmt.CommentStmt);
+  commentColStmts.map(com => {
+    const comment = com.comment;
+    const col = com.object.List.items[2].String.sval;
+    const schemaCol = schema.columns.find(i => i.column === col);
+    console.log(schemaCol);
+    if(schemaCol) schemaCol.comment = comment;
+    if(schemaCol && comment.includes('Label:')) schemaCol.label = comment.split('Label:')[1].trim();
+  })
+
   return schema;
 }
 
@@ -568,5 +584,51 @@ public interface ${entityName}DAO {
   `;
 
   return daoTemplate;
+}
+
+async function buildspringDTOFromDdl(ddl: string, dialect: Dialect): Promise<string> {
+  const schema = await dllToAst(ddl);
+	const entityName = snakeToPascalCase(schema.table.replace('tb_', ''));
+  const columns = schema.columns;
+
+  const properties = columns.map(col => {
+    const type = columnToTypeJava(col, dialect);
+    const field = columnToFieldJava(col.column);
+    const label = col.label !== '' ? col.label : field;
+    const pkValid = col.isPrimary ? `@Null(message = "O campo ${label} precisa está vazio.")\n  ` : '';
+    const notBlankOrNull = ['String'].includes(type) ?
+      `@NotBlank(message = "O campo ${label} não pode ser nulo ou em branco.")` : `@NotNull(message = "O campo ${label} não pode ser nulo.")`;
+    const notNullValid = !col.isNullable ? `${notBlankOrNull}\n  ` : '';
+    const sizeValid = col.len > 0 && ['String'].includes(type) && pkValid === '' ?
+      `@Size(max = ${col.len}, message = "O campo ${label} aceita no máximo ${col.len} caracteres.")\n  ` : '';
+    const scaleMessage = col.scale > 0 ? ` e ${col.scale} decimais.` : '.';
+    const digitValid = col.len > 0 && ['Integer', 'Long', 'BigDecimal', 'Double'].includes(type) && pkValid === '' ?
+      `@Digits(integer = ${col.len}, fraction = ${col.scale}, message = "O campo ${label} só permite ${col.len} digitos inteiros${scaleMessage}")\n  ` : '';
+
+    return `${pkValid}${notNullValid}${sizeValid}${digitValid}private ${type} ${field};`;
+  });
+
+
+  let template = `
+
+import jakarta.validation.constraints.*;
+import lombok.*;
+
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@NoArgsConstructor
+public class ${entityName}DTO implements Serializable {
+
+  ${properties.join('\n\n  ')}
+
+}
+  `;
+
+  return template;
 }
 

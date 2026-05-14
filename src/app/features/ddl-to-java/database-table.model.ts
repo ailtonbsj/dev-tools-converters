@@ -15,4 +15,6 @@ export interface TableColunm {
   scale: number
   references: string
   allowValues: string[]
+  comment: string
+  label: string
 }

@@ -406,8 +406,9 @@ public class ${entityName} implements Serializable {\n\n`;
 		const enumVals = col.allowValues ? `\t// Enum: ${col.allowValues.join(', ')}\n` : '';
 		const primarykey = col.isPrimary ? `\t@Id\n` : '';
 		const autoincrement = col.autoincrement ? `\t@GeneratedValue(strategy = GenerationType.IDENTITY)\n` : '';
+    const label = col.label != null && col.label !== '' ? `\t/* ${col.label} */\n` : '';
 
-		let colStr = `${refs}${enumVals}${primarykey}${autoincrement}`;
+		let colStr = `${label}${refs}${enumVals}${primarykey}${autoincrement}`;
 		colStr += `\t@Column(name = "${col.column}", nullable = ${col.isNullable}${len}${unique})\n`;
 		colStr += `\tprivate ${columnType} ${columnName};\n\n`;
 
@@ -496,8 +497,9 @@ public class ${entityName} implements Serializable {\n\n`;
 		const refs = col.references ? `\t// References: ${col.references}\n` : '';
 		const enumVals = col.allowValues ? `\t// Enum: ${col.allowValues.join(', ')}\n` : '';
 		const primarykey = col.isPrimary ? `\t// Primary Key\n` : '';
+    const label = col.label != null && col.label !== '' ? `\t/* ${col.label} */\n` : '';
 
-		let colStr = `${refs}${enumVals}${primarykey}`;
+		let colStr = `${label}${refs}${enumVals}${primarykey}`;
     colStr += `\t// Column(name = "${col.column}", nullable = ${col.isNullable}${len}${unique})\n`;
 		colStr += `\tprivate ${columnType} ${columnName};\n\n`;
 
@@ -594,7 +596,7 @@ async function buildspringDTOFromDdl(ddl: string, dialect: Dialect): Promise<str
   const properties = columns.map(col => {
     const type = columnToTypeJava(col, dialect);
     const field = columnToFieldJava(col.column);
-    const label = col.label !== '' ? col.label : field;
+    const label = col.label != null && col.label !== '' ? col.label : field;
     const pkValid = col.isPrimary ? `@Null(message = "O campo ${label} precisa está vazio.")\n  ` : '';
     const notBlankOrNull = ['String'].includes(type) ?
       `@NotBlank(message = "O campo ${label} não pode ser nulo ou em branco.")` : `@NotNull(message = "O campo ${label} não pode ser nulo.")`;
@@ -604,8 +606,9 @@ async function buildspringDTOFromDdl(ddl: string, dialect: Dialect): Promise<str
     const scaleMessage = col.scale > 0 ? ` e ${col.scale} decimais.` : '.';
     const digitValid = col.len > 0 && ['Integer', 'Long', 'BigDecimal', 'Double'].includes(type) && pkValid === '' ?
       `@Digits(integer = ${col.len}, fraction = ${col.scale}, message = "O campo ${label} só permite ${col.len} digitos inteiros${scaleMessage}")\n  ` : '';
+    const labelComment = col.label != null && col.label !== '' ? `/* ${col.label} */\n  ` : '';
 
-    return `${pkValid}${notNullValid}${sizeValid}${digitValid}private ${type} ${field};`;
+    return `${labelComment}${pkValid}${notNullValid}${sizeValid}${digitValid}private ${type} ${field};`;
   });
 
 

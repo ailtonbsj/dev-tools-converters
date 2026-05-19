@@ -177,6 +177,10 @@ function columnToFieldJava(columnOfTable: string) {
   return snakeToCamelCase(normalizeColumnOfTable(columnOfTable));
 }
 
+function columnToPascalFieldJava(columnOfTable: string) {
+  return snakeToPascalCase(normalizeColumnOfTable(columnOfTable));
+}
+
 function columnToTypeJava(col: TableColunm, dialect: Dialect) {
   let columnType = 'UNKNOWN_TYPE';
   // let len = '';
@@ -586,6 +590,15 @@ async function buildMyBatisDAOFromDdl(ddl: string, dialect: Dialect): Promise<st
     const space = ''.padStart(maxColLength - col.column.length + 1);
     return `${col.column}${space}= #{${columnToFieldJava(col.column)}}`;
   });
+  const andClauses = columns.map(col => {
+    const strFragment = columnToTypeJava(col, dialect) === 'String' ? ` && !example.get${columnToPascalFieldJava(col.column)}().isBlank()` : '';
+    return `and("${col.column} = #{example.${columnToFieldJava(col.column)}}", example.get${columnToPascalFieldJava(col.column)}() != null${strFragment})`;
+  });
+  const fieldToColumnMap = columns.map(col => {
+    const field = columnToFieldJava(col.column);
+    const space = ''.padStart(maxColLength - field.length - 2);
+    return `entry("${field}",${space}"${col.column}")`;
+  });
 
   let daoTemplate = `
 import org.apache.ibatis.annotations.*;
@@ -593,24 +606,24 @@ import org.apache.ibatis.annotations.*;
 import java.util.List;
 import java.util.Optional;
 
+import static java.util.Map.entry;
+
 @Mapper
 public interface ${entityName}DAO {
 
-    @Select("select * from ${schema.schema}.${schema.table}")
     @Results(id = "${entityNameCamel}ResultMap", value = {
       ${results.join(',\n      ')}
     })
-    List<${entityName}> findAll();
+    @Select("select * from ${schema.schema}.${schema.table} where ${primariesPredicate.join(', ')}")
+    Optional<${entityName}> findById(${primariesField.join(', ')});
 
     @Select("""
-      select
-        ${aliases.join(',\n        ')}
-      from
-          ${schema.schema}.${schema.table}
-      where
-          ${primariesPredicate.join(', ')}
+    select
+      ${aliases.join(',\n      ')}
+    from
+      ${schema.schema}.${schema.table}
     """)
-    Optional<${entityName}> findById(${primariesField.join(', ')});
+    List<${entityName}> findAll();
 
     @Insert("""
       insert into ${schema.schema}.${schema.table} values (
@@ -630,8 +643,69 @@ public interface ${entityName}DAO {
     @Delete("delete from ${schema.schema}.${schema.table} where ${primariesPredicate.join(', ')}")
     int deleteById(${primariesField.join(', ')});
 
-    // findByExamplePaginatedAndSorted
-    // findByTermPaginatedAndSorted
+    @ResultMap("${entityNameCamel}ResultMap")
+    @SelectProvider(type = SQLProvider.class,  method = "findByExamplePaginatedAndSorted")
+    List<${entityName}> findByExamplePaginatedAndSorted(${entityName} example, Pageable pageable);
+
+    @SelectProvider(type = SQLProvider.class,  method = "countByExample")
+    Long countByExample(@Param("example") ${entityName} example);
+
+    class SQLProvider {
+
+      public String findByExamplePaginatedAndSorted(${entityName} example, Pageable pageable) {
+        return """
+          select * from (
+            select row_.*, rownum rownum_ from (
+
+              select e.* from ${schema.schema}.${schema.table} e
+              %s
+              order by
+                %s
+
+            ) row_
+          )
+          where
+            rownum_ <= #{pageable.offset} + #{pageable.pageSize} and
+            rownum_ > #{pageable.offset}
+        """.formatted(buildWhere(example), buildOrderBy(pageable));
+      }
+
+      public String countByExample(${entityName} example) {
+          return """
+              select count(1) from ${schema.schema}.${schema.table} e
+              %s
+          """.formatted(buildWhere(example));
+      }
+
+      private String buildWhere(${entityName} example) {
+          var clauses = Stream.of(
+              ${andClauses.join(',\n              ')}
+          ).filter(Objects::nonNull).collect(Collectors.toList());
+          if(!clauses.isEmpty()) {
+              clauses.set(0, clauses.getFirst().replaceAll("(?i)^and|^or", ""));
+              clauses.addFirst("where");
+          }
+          return clauses.isEmpty() ? "" : String.join("\\n", clauses);
+      }
+
+      private String and(String sql, boolean condition) {
+          return condition ? "and " + sql : null;
+      }
+
+      private String buildOrderBy(Pageable pageable) {
+          if (pageable.getSort().isUnsorted()) return FIELDMAP.get("id") + "ASC";
+          return pageable.getSort().stream().map(order -> {
+              String column = FIELDMAP.get(order.getProperty());
+              if (column == null) throw new ResponseStatusException(BAD_REQUEST, "Campo de ordenamento inválido." );
+              return column + " " + order.getDirection().name();
+          }).collect(Collectors.joining(", "));
+      }
+
+      private static final Map<String, String> FIELDMAP = Map.ofEntries(
+        ${fieldToColumnMap.join(',\n        ')}
+      );
+
+    }
 }
   `;
 

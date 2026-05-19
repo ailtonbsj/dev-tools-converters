@@ -13,7 +13,8 @@ import { PgParser } from '@supabase/pg-parser';
 import { DatabaseTable, TableColunm } from './database-table.model';
 
 type Dialect = 'postgresql' | 'oracle';
-const GeneratedCodeEnum = { jpaEntity: 'jpaEntity', mybatisEntity: 'mybatisEntity', mybatisDAO: 'mybatisDAO', springDTO: 'springDTO' } as const;
+const GeneratedCodeEnum = { jpaEntity: 'jpaEntity', mybatisEntity: 'mybatisEntity', mybatisDAO: 'mybatisDAO',
+  springDTO: 'springDTO', angularModel: 'angularModel' } as const;
 type GeneratedCodeType = typeof GeneratedCodeEnum[keyof typeof GeneratedCodeEnum];
 
 @Component({
@@ -75,9 +76,13 @@ export class DdlToJavaComponent {
         this.generatedEntity.set(entity);
         this.snackBar.open('DAO MyBatis gerada com sucesso.', 'Fechar', { duration: 2500 });
       } else if(this.generatedCodeType() === GeneratedCodeEnum.springDTO) {
-        const entity = await buildspringDTOFromDdl(this.ddlInput(), this.dialect());
+        const entity = await buildSpringDTOFromDdl(this.ddlInput(), this.dialect());
         this.generatedEntity.set(entity);
         this.snackBar.open('DTO MyBatis gerada com sucesso.', 'Fechar', { duration: 2500 });
+      } else if(this.generatedCodeType() === GeneratedCodeEnum.angularModel) {
+        const entity = await buildAngularModelFromDdl(this.ddlInput(), this.dialect());
+        this.generatedEntity.set(entity);
+        this.snackBar.open('Model do Angular gerada com sucesso.', 'Fechar', { duration: 2500 });
       } else {
         this.snackBar.open('A conversão não está disponível.', 'Fechar', { duration: 3000 });
         return;
@@ -227,6 +232,51 @@ function columnToTypeJava(col: TableColunm, dialect: Dialect) {
   return columnType;
 }
 
+function columnToTypeTypeScript(col: TableColunm, dialect: Dialect) {
+  let columnType = 'UNKNOWN_TYPE';
+  switch (col.type.toLowerCase()) {
+    case 'varchar2':
+    case 'varchar':
+    case 'bpchar':
+    case 'text':
+      columnType = 'string';
+      break;
+    case 'numeric':
+    case 'real':
+    case 'double precision':
+    case 'number':
+      columnType = col.len > 16 ? 'string' : 'number';
+      break;
+    case 'bigserial':
+    case 'bigint':
+    case 'serial8':
+    case 'int8':
+      columnType = 'number';
+      break;
+    case 'serial':
+    case 'smallserial':
+    case 'integer':
+    case 'smallint':
+    case 'serial4':
+    case 'int4':
+      columnType = 'number';
+      break;
+    case 'timestamp':
+      columnType = 'Date';
+      break;
+    case 'date':
+      columnType = 'Date';
+      break;
+    case 'bool':
+    case 'boolean':
+      columnType = 'boolean';
+      break;
+    default:
+      console.log(col.type);
+  }
+  return columnType;
+}
+
 async function dllToAst(ddl: string): Promise<DatabaseTable> {
   const parser = new PgParser({ version: 17 });
 	const { tree } = await parser.parse(ddl);
@@ -348,7 +398,7 @@ public class ${entityName} implements Serializable {\n\n`;
 	for(const col of schema.columns) {
 		const unique = col.isUnique ? `, unique = true` : '';
 		let normalizedColunm = col.column.toLowerCase()
-			.replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^hr_/g,'') + ((/^cd_/i).test(col.column.toLowerCase()) ? 'Id' : '');
+			.replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^hr_|^vr_|^vl_/g,'') + ((/^cd_/i).test(col.column.toLowerCase()) ? 'Id' : '');
 		normalizedColunm = col.column.toLowerCase().includes('ci_') ? 'id' : normalizedColunm;
 		const columnName = snakeToCamelCase(normalizedColunm);
 		let columnType = 'UNKNOWN_TYPE';
@@ -440,7 +490,7 @@ public class ${entityName} implements Serializable {\n\n`;
 	for(const col of schema.columns) {
 		const unique = col.isUnique ? `, unique = true` : '';
 		let normalizedColunm = col.column.toLowerCase()
-			.replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^hr_/g,'') + ((/^cd_/i).test(col.column.toLowerCase()) ? 'Id' : '');
+			.replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^hr_|^vr_|^vl_/g,'') + ((/^cd_/i).test(col.column.toLowerCase()) ? 'Id' : '');
 		normalizedColunm = col.column.toLowerCase().includes('ci_') ? 'id' : normalizedColunm;
 		const columnName = snakeToCamelCase(normalizedColunm);
 		let columnType = 'UNKNOWN_TYPE';
@@ -588,7 +638,7 @@ public interface ${entityName}DAO {
   return daoTemplate;
 }
 
-async function buildspringDTOFromDdl(ddl: string, dialect: Dialect): Promise<string> {
+async function buildSpringDTOFromDdl(ddl: string, dialect: Dialect): Promise<string> {
   const schema = await dllToAst(ddl);
 	const entityName = snakeToPascalCase(schema.table.replace('tb_', ''));
   const columns = schema.columns;
@@ -635,3 +685,16 @@ public class ${entityName}DTO implements Serializable {
   return template;
 }
 
+async function buildAngularModelFromDdl(ddl: string, dialect: Dialect): Promise<string> {
+  const schema = await dllToAst(ddl);
+	const entityName = snakeToPascalCase(schema.table.replace('tb_', ''));
+  const columns = schema.columns;
+  const properties = columns.map(col => `${columnToFieldJava(col.column)}: ${columnToTypeTypeScript(col, dialect)}`);
+
+  const modelTemplate = `
+export interface ${entityName} {
+  ${properties.join('\n  ')}
+}
+  `;
+  return modelTemplate;
+}

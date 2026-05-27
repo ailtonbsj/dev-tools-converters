@@ -38,7 +38,8 @@ export class AppShellComponent {
   protected readonly navItems: NavigationItem[] = [
     { label: 'Início', icon: 'home', route: '/home' },
     { label: 'DDL para Java', icon: 'coffee', route: '/ddl-to-java' },
-    { label: 'DDL para JPA Codex', icon: 'robot', route: '/ddl-to-jpa-bot' }
+    { label: 'DDL para JPA Codex', icon: 'robot', route: '/ddl-to-jpa-bot' },
+    { label: 'DDL to Module', icon: 'folder_code', route: '/ddl-to-module' }
   ];
   private readonly breakpointObserver = inject(BreakpointObserver);
 

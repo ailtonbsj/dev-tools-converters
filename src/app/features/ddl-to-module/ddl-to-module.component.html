@@ -1,0 +1,66 @@
+<section class="module-layout">
+  <mat-card class="module-card">
+    <mat-card-header>
+      <mat-card-title>DDL para módulo</mat-card-title>
+      <mat-card-subtitle>Informe os dados de entrada para gerar o boilerplate do módulo.</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <form class="module-form" (ngSubmit)="generateBoilerplate()">
+        <div class="form-grid">
+          <mat-form-field appearance="outline">
+            <mat-label>Dialeto SQL</mat-label>
+            <mat-select [ngModel]="dialect()" (ngModelChange)="dialect.set($event)" name="dialect">
+              <mat-option value="postgresql">PostgreSQL</mat-option>
+              <mat-option value="oracle">Oracle</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Nome do módulo em PascalCase</mat-label>
+            <input
+              matInput
+              type="text"
+              name="pascalCaseModuleName"
+              [ngModel]="pascalCaseModuleName()"
+              (ngModelChange)="pascalCaseModuleName.set($event)" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Nome do módulo para seres humanos</mat-label>
+            <input
+              matInput
+              type="text"
+              name="humanModuleName"
+              [ngModel]="humanModuleName()"
+              (ngModelChange)="humanModuleName.set($event)" />
+          </mat-form-field>
+        </div>
+
+        <section class="sql-section">
+          <div class="sql-toolbar">
+            <button mat-stroked-button type="button" (click)="pasteFromClipboard()">
+              Colar código
+            </button>
+          </div>
+
+          <mat-form-field appearance="outline" class="sql-field">
+            <mat-label>SQL de entrada</mat-label>
+            <textarea
+              matInput
+              name="sqlInput"
+              [ngModel]="sqlInput()"
+              (ngModelChange)="sqlInput.set($event)"
+              spellcheck="false"></textarea>
+          </mat-form-field>
+        </section>
+
+        <div class="button-row">
+          <button mat-raised-button color="primary" type="submit">
+            Gerar boilerplate
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</section>

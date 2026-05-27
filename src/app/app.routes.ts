@@ -25,6 +25,11 @@ export const routes: Routes = [
         path: 'ddl-to-jpa-bot',
         loadComponent: () =>
           import('./features/ddl-to-jpa-bot/ddl-to-jpa.component').then((m) => m.DdlToJpaComponent)
+      },
+      {
+        path: 'ddl-to-module',
+        loadComponent: () =>
+          import('./features/ddl-to-module/ddl-to-module.component').then((m) => m.DdlToModuleComponent)
       }
     ]
   },

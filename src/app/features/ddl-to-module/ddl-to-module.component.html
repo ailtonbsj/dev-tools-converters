@@ -39,20 +39,24 @@
 
         <section class="sql-section">
           <div class="sql-toolbar">
+            <label class="sql-label" for="sqlInput">SQL de entrada</label>
             <button mat-stroked-button type="button" (click)="pasteFromClipboard()">
               Colar código
             </button>
           </div>
 
-          <mat-form-field appearance="outline" class="sql-field">
-            <mat-label>SQL de entrada</mat-label>
+          <div class="sql-editor">
+            <pre class="highlight-layer" aria-hidden="true"><code #sqlHighlightCode [highlight]="highlightedSqlInput()" language="sql"></code></pre>
             <textarea
-              matInput
+              #sqlTextarea
+              id="sqlInput"
               name="sqlInput"
               [ngModel]="sqlInput()"
-              (ngModelChange)="sqlInput.set($event)"
-              spellcheck="false"></textarea>
-          </mat-form-field>
+              (ngModelChange)="onSqlInput($event, sqlTextarea, sqlHighlightCode)"
+              (scroll)="syncHighlightScroll(sqlTextarea, sqlHighlightCode)"
+              spellcheck="false"
+              wrap="off"></textarea>
+          </div>
         </section>
 
         <div class="button-row">

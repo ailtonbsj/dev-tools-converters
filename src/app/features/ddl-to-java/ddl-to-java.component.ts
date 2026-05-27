@@ -14,7 +14,7 @@ import { DatabaseTable, TableColunm } from './database-table.model';
 
 type Dialect = 'postgresql' | 'oracle';
 const GeneratedCodeEnum = { jpaEntity: 'jpaEntity', mybatisEntity: 'mybatisEntity', mybatisDAO: 'mybatisDAO',
-  springDTO: 'springDTO', angularModel: 'angularModel' } as const;
+  springDTO: 'springDTO', angularModel: 'angularModel', angularDataTable: 'angularDataTable' } as const;
 type GeneratedCodeType = typeof GeneratedCodeEnum[keyof typeof GeneratedCodeEnum];
 
 @Component({
@@ -43,7 +43,13 @@ export class DdlToJavaComponent {
   email VARCHAR(180),
   active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP NOT NULL
-);`);
+);
+COMMENT ON COLUMN public.customer_account.my_primary_key IS 'Label: My primary key';
+COMMENT ON COLUMN public.customer_account.customer_name  IS 'Label: Constomer name';
+COMMENT ON COLUMN public.customer_account.email          IS 'Label: E-mail';
+COMMENT ON COLUMN public.customer_account.active         IS 'Label: Active';
+COMMENT ON COLUMN public.customer_account.created_at     IS 'Label: Created at';
+`);
   protected readonly generatedEntity = signal('');
   protected readonly highlightedSql = computed(() => this.highlightSql(this.ddlInput()));
   protected readonly highlightedJava = computed(() => this.highlightJava(this.generatedEntity()));
@@ -83,6 +89,10 @@ export class DdlToJavaComponent {
         const entity = await buildAngularModelFromDdl(this.ddlInput(), this.dialect());
         this.generatedEntity.set(entity);
         this.snackBar.open('Model do Angular gerada com sucesso.', 'Fechar', { duration: 2500 });
+      } else if(this.generatedCodeType() === GeneratedCodeEnum.angularDataTable) {
+        const entity = await buildAngularDataTableFromDdl(this.ddlInput(), this.dialect());
+        this.generatedEntity.set(entity);
+        this.snackBar.open('DataTable do Angular gerada com sucesso.', 'Fechar', { duration: 2500 });
       } else {
         this.snackBar.open('A conversão não está disponível.', 'Fechar', { duration: 3000 });
         return;
@@ -592,12 +602,12 @@ async function buildMyBatisDAOFromDdl(ddl: string, dialect: Dialect): Promise<st
   });
   const andClauses = columns.map(col => {
     const strFragment = columnToTypeJava(col, dialect) === 'String' ? ` && !example.get${columnToPascalFieldJava(col.column)}().isBlank()` : '';
-    return `and("${col.column} = #{example.${columnToFieldJava(col.column)}}", example.get${columnToPascalFieldJava(col.column)}() != null${strFragment})`;
+    return `and("e.${col.column} = #{example.${columnToFieldJava(col.column)}}", example.get${columnToPascalFieldJava(col.column)}() != null${strFragment})`;
   });
   const fieldToColumnMap = columns.map(col => {
     const field = columnToFieldJava(col.column);
     const space = ''.padStart(maxColLength - field.length - 2);
-    return `entry("${field}",${space}"${col.column}")`;
+    return `entry("${field}",${space}"e.${col.column}")`;
   });
 
   let daoTemplate = `
@@ -693,7 +703,7 @@ public interface ${entityName}DAO {
       }
 
       private String buildOrderBy(Pageable pageable) {
-          if (pageable.getSort().isUnsorted()) return FIELDMAP.get("id") + "ASC";
+          if (pageable.getSort().isUnsorted()) return FIELDMAP.get("id") + "asc";
           return pageable.getSort().stream().map(order -> {
               String column = FIELDMAP.get(order.getProperty());
               if (column == null) throw new ResponseStatusException(BAD_REQUEST, "Campo de ordenamento inválido." );
@@ -772,3 +782,548 @@ export interface ${entityName} {
   `;
   return modelTemplate;
 }
+
+async function buildAngularDataTableFromDdl(ddl: string, dialect: Dialect): Promise<string> {
+  const schema = await dllToAst(ddl);
+  const entityNameSnake = schema.table.replace('tb_', '');
+  const entityName = snakeToPascalCase(entityNameSnake);
+  const columns = schema.columns;
+
+  const formFields = columns.map(field => {
+    const fieldName = columnToFieldJava(field.column);
+      return `
+          <!-- ${field.label} -->
+          <div class="fx-col-1">
+            <mat-form-field appearance="outline">
+              <mat-label>${field.label}</mat-label>
+              <input matInput type="text" formControlName="${fieldName}" />
+              @if(form.controls.${fieldName}.invalid){
+              <mat-error>Campo obrigatório.</mat-error>
+              }
+            </mat-form-field>
+          </div>`;
+  });
+
+  const tableColumns = columns.map(column => {
+    const colName = columnToFieldJava(column.column);
+    return `
+        <!-- ${column.label} Column -->
+        <ng-container matColumnDef="${colName}">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-bold-center">
+            ${column.label}
+            <app-sort-icon column="${colName}" [sorts]="sorts()" />
+          </th>
+          <td mat-cell *matCellDef="let el" class="text-center align-middle fs-6">
+            {{ el.${colName} }}
+            @if (el.${colName} === null) {
+            <mat-chip>{{ dataNotFound }}</mat-chip>
+            }
+          </td>
+        </ng-container>`;
+  });
+
+  const datatableTemplate = `
+import { AfterViewInit, Component, inject, signal, ViewChild } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { MatTableDataSource } from '@angular/material/table';
+import { MaterialModule } from 'src/app/shared/material.module';
+import { Page } from 'src/app/shared/models/page.model';
+import { PageEvent } from '@angular/material/paginator';
+import { PageControl } from 'src/app/shared/models/page-control.model';
+import { firstValueFrom } from 'rxjs';
+import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
+import { AlertService } from '@seduc/ngx-components';
+import { SpinnerTextService } from 'src/app/shared/services/spinner-text.service';
+import { MatSort, Sort } from '@angular/material/sort';
+import { ${entityName} } from '../${entityNameSnake}.model';
+import { ${entityName}Service } from '../${entityNameSnake}.service';
+
+@Component({
+  selector: 'app-${entityNameSnake}-datatable',
+  imports: [ReactiveFormsModule, MaterialModule],
+  template: \`
+<div class="container-fluid py-3">
+  <div class="card">
+    <div class="card-header bg-primary">
+      <h1>Consulta ${entityName}</h1>
+    </div>
+    <div class="card-body">
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+
+        <div class="fx-grid">
+          ${formFields.join('\n')}
+
+        </div>
+
+        <div class="d-flex">
+          <button type="submit" mat-raised-button color="primary" class="me-2" [disabled]="isLoading">
+            <i class="fa-solid fa-magnifying-glass"></i> Consultar
+          </button>
+          <button type="button" mat-raised-button (click)="clearForm()" [disabled]="isLoading">
+            <i class="fa-solid fa-eraser"></i> Limpar
+          </button>
+          <a routerLink="./new" class="ms-auto" [hidden]="true">
+            <button type="button" color="primary" mat-raised-button>
+              <i class="fa-solid fa-plus"></i>
+              Novo
+            </button>
+          </a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid py-3">
+  <div class="card">
+    <div class="card-header">
+      Resultado
+    </div>
+    <div class="card-body">
+      <div class="datatable-panel">
+        <table mat-table [dataSource]="datasource" matSort multiTemplateDataRows
+          class="table table-striped table-hover table-bordered table-condensed table-border-brown">
+          ${tableColumns.join('\n')}
+
+          <!-- Actions Column -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="th-bold-center">
+              Ações
+            </th>
+            <td mat-cell *matCellDef="let el" class="text-center align-middle fs-6 w2-actions">
+              <button type="button" mat-icon-button color="primary" matTooltip="Visualizar">
+                <mat-icon>visibility</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <!-- Footer Column -->
+          <ng-container matColumnDef="footer">
+            <td mat-footer-cell *matFooterCellDef [attr.colspan]="displayedColumns.length" class="bg-color-lightbrown">
+              <div class="container p-3">
+                <div class="row g-3 text-center">
+                  <div class="col-12 fs-6">
+                    @if(isLoading) {
+                    <i class="fa-solid fa-spinner fa-spin-pulse"></i> Carregando ...
+                    } @else {
+                    {{ isFirstSearch ? 'Faça uma consulta.' : 'Nenhum registro encontrado.' }}
+                    }
+                  </div>
+                </div>
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+          <tr mat-footer-row *matFooterRowDef="displayFooter" [hidden]="displayFooter.length === 0"></tr>
+        </table>
+      </div>
+
+      <mat-paginator [length]="entityPage.totalElements" [pageSize]="entityPage.size" [pageIndex]="entityPage.number"
+        [showFirstLastButtons]="true" [pageSizeOptions]="[5, 10, 20, 50, 100]" (page)="onPageChange($event)"
+        aria-label="Selecione a página" class="pagination-bottom-border">
+      </mat-paginator>
+
+    </div>
+  </div>
+</div>
+  \`,
+  styles: [\`
+/* Flex helpers */
+
+.fx-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  --gap-diff: 16px;
+
+  & mat-form-field {
+    width: 100%;
+  }
+
+  >div {
+    min-width: 1px;
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: calc(100% / 12 - var(--gap-diff));
+  }
+
+  >.fx-col-1 {
+    flex-basis: calc(100% / 12 - var(--gap-diff));
+  }
+
+  >.fx-col-2 {
+    flex-basis: calc(100% / 6 - var(--gap-diff));
+  }
+
+  >.fx-col-3 {
+    flex-basis: calc(100% / 4 - var(--gap-diff));
+  }
+
+  >.fx-col-4 {
+    flex-basis: calc(100% / 3 - var(--gap-diff));
+  }
+
+  >.fx-col-5 {
+    flex-basis: calc(5 * (100% / 12) - var(--gap-diff));
+  }
+
+  >.fx-col-6 {
+    flex-basis: calc(100% / 2 - var(--gap-diff));
+  }
+
+  >.fx-col-12 {
+    flex-basis: 100%;
+  }
+}
+
+@media (min-width: 992px) and (max-width: 1200px) {
+
+  .fx-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 16px;
+    --gap-diff: 16px;
+
+    >div {
+      min-width: 1px;
+      flex-grow: 1;
+      flex-shrink: 1;
+      flex-basis: calc(100% / 6 - var(--gap-diff));
+    }
+
+    >.fx-col-1 {
+      flex-basis: calc(100% / 6 - var(--gap-diff));
+    }
+
+    >.fx-col-2 {
+      flex-basis: calc(100% / 3 - var(--gap-diff));
+    }
+
+    >.fx-col-3 {
+      flex-basis: calc(100% / 2 - var(--gap-diff));
+    }
+
+    >.fx-col-4 {
+      flex-basis: calc(2 * (100% / 3) - var(--gap-diff));
+    }
+
+    >.fx-col-5 {
+      flex-basis: calc(10 * (100% / 12) - var(--gap-diff));
+    }
+
+    >.fx-col-6,
+    >.fx-col-12 {
+      flex-basis: 100%;
+    }
+  }
+
+}
+
+@media (min-width: 768px) and (max-width: 992px) {
+
+  .fx-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 16px;
+    --gap-diff: 16px;
+
+    >div {
+      min-width: 1px;
+      flex-grow: 1;
+      flex-shrink: 1;
+      flex-basis: calc(100% / 6 - var(--gap-diff));
+    }
+
+    >.fx-col-1 {
+      flex-basis: calc(100% / 6 - var(--gap-diff));
+    }
+
+    >.fx-col-2 {
+      flex-basis: calc(100% / 3 - var(--gap-diff));
+    }
+
+    >.fx-col-3 {
+      flex-basis: calc(100% / 2 - var(--gap-diff));
+    }
+
+    >.fx-col-4 {
+      flex-basis: calc(2 * (100% / 3) - var(--gap-diff));
+    }
+
+    >.fx-col-5 {
+      flex-basis: calc(10 * (100% / 12) - var(--gap-diff));
+    }
+
+    >.fx-col-6,
+    >.fx-col-12 {
+      flex-basis: 100%;
+    }
+  }
+
+}
+
+@media (min-width: 576px) and (max-width: 768px) {
+
+  .fx-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 16px;
+    --gap-diff: 16px;
+
+    >div {
+      min-width: 1px;
+      flex-grow: 1;
+      flex-shrink: 1;
+      flex-basis: calc(100% / 4 - var(--gap-diff));
+    }
+
+    >.fx-col-1 {
+      flex-basis: calc(100% / 4 - var(--gap-diff));
+    }
+
+    >.fx-col-2 {
+      flex-basis: calc(100% / 2 - var(--gap-diff));
+    }
+
+    >.fx-col-3 {
+      flex-basis: calc(3 * (100% / 4) - var(--gap-diff));
+    }
+
+    >.fx-col-4,
+    >.fx-col-5,
+    >.fx-col-6,
+    >.fx-col-12 {
+      flex-basis: 100%;
+    }
+
+  }
+
+}
+
+@media (max-width: 576px) {
+
+  .fx-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 16px;
+    --gap-diff: 16px;
+
+    >div {
+      min-width: 1px;
+      flex-grow: 1;
+      flex-shrink: 1;
+      flex-basis: 100%;
+    }
+
+    >.fx-col-1,
+    >.fx-col-2,
+    >.fx-col-3,
+    >.fx-col-4,
+    >.fx-col-5,
+    >.fx-col-6,
+    >.fx-col-12 {
+      flex-basis: 100%;
+    }
+
+  }
+
+}
+
+/* Fix panel header */
+
+.card-header > h1 {
+  font-size: 16pt;
+  margin: 0;
+}
+
+/* Fix Mat Table */
+
+.table-border-brown {
+  border-color: #dee2e6;
+  margin: 0 !important;
+}
+
+.th-bold-center {
+  font-size: 16px;
+  font-weight: bold;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.bg-color-lightbrown {
+  background-color: #f2f2f2;
+}
+
+::ng-deep .mat-sort-header-container {
+  display: flex;
+  justify-content: center;
+}
+
+::ng-deep .mat-sort-header .mat-sort-header-arrow {
+  display: none !important;
+}
+
+.datatable-panel {
+  overflow-x: auto;
+  scrollbar-width: 6px;
+}
+
+.datatable-panel::-webkit-scrollbar-thumb {
+  background-color: #388e3c;
+  border-radius: 6px;
+}
+
+.datatable-panel::-webkit-scrollbar {
+  height: 6px;
+}
+
+/* Fix Paginator */
+
+.pagination-bottom-border {
+  border-color: #dee2e6;
+  border-style: solid;
+  border-width: 0 1px 1px 1px;
+}
+
+/* Estilos adicionais */
+
+.w2-actions {
+  width: 116px !important;
+}
+
+  \`]
+})
+export class ${entityName}DataTableComponent implements AfterViewInit {
+
+  private fb = inject(FormBuilder);
+  private alert = inject(AlertService);
+  private spinnerText = inject(SpinnerTextService);
+  private service = inject(${entityName}Service);
+
+  form = this.fb.group({
+    ${columns.map(c => columnToFieldJava(c.column) + ': [\'\'],').join('\n    ')}
+  });
+
+  isFirstSearch = true;
+  enableSearch = false;
+  isLoading = false;
+
+  datasource = new MatTableDataSource(<${entityName}[]>[]);
+  displayedColumns: string[] = [${columns.map(c => '\'' + columnToFieldJava(c.column) + '\'').join(', ')}, 'actions'];
+  displayFooter = ['footer'];
+
+  readonly dataNotFound = 'Não foi informado!';
+
+  entity = <${entityName}>{};
+  entityPage = <Page<${entityName}>>{ size: 10 };
+  pageCtl: PageControl = <PageControl>{
+    pageNumber: 0,
+    pageSize: 10,
+    directions: 'desc',
+    sortProps: 'id',
+  };
+
+  @ViewChild(MatSort) sortViewChild: MatSort = <MatSort>{};
+  sorts = signal<{ active: string, direction: string }[]>([]);
+
+  ngAfterViewInit(): void {
+    this.sortViewChild.sortChange.subscribe({
+      next: (sort: Sort) => {
+        const item = this.sorts().find(o => o.active === sort.active);
+        if (item) {
+          if (sort.direction !== '') item.direction = sort.direction;
+          else this.sorts.set(this.sorts().filter(o => o.active != item.active));
+        } else {
+          if (sort.direction !== '') {
+            const sortsArr = this.sorts();
+            sortsArr.push(sort);
+            this.sorts.set(sortsArr);
+          }
+        }
+        const sortProps = this.sorts().map(o => o.active).join(',');
+        const directions = this.sorts().map(o => o.direction).join(',');
+        if (sortProps !== this.pageCtl.sortProps || directions !== this.pageCtl.directions) {
+          this.pageCtl.sortProps = sortProps;
+          this.pageCtl.directions = directions;
+          this.search();
+        }
+      }
+    });
+  }
+
+  onSubmit() {
+    this.trimFields();
+    if (this.form.valid) {
+      this.pageCtl.pageNumber = 0;
+      this.entity = <${entityName}>{
+        ...this.form.value as any,
+      };
+      this.isFirstSearch = false;
+      this.enableSearch = true;
+      this.search();
+    }
+  }
+
+  trimFields() {
+    Object.keys(this.form.value)
+      .map(f => this.form.get(f))
+      .filter(f => typeof f?.value === 'string')
+      .map(f => f?.setValue(f?.value.trim()));
+  }
+
+  async search() {
+    if (!this.enableSearch) return;
+    this.enableSearch = false;
+    this.isLoading = true;
+    this.spinnerText.show('Carregando dados da tabela ...');
+    try {
+      const page = await firstValueFrom(this.service.filter(this.entity, this.pageCtl));
+      this.displayFooter = page.content?.length !== 0 ? [] : ['footer'];
+      this.entityPage = page;
+      this.datasource = new MatTableDataSource(this.entityPage.content);
+    } catch (e: unknown) {
+      if (e instanceof HttpErrorResponse) {
+        if (e.status === HttpStatusCode.NotFound) {
+          this.alertWarn(e.error.message);
+        } else if (e.status === HttpStatusCode.BadRequest) {
+          this.alertWarn(e.error.message);
+        } else console.log(e);
+      } else console.log(e);
+    }
+    this.spinnerText.hide();
+    this.isLoading = false;
+    this.enableSearch = true;
+  }
+
+  onPageChange(event: PageEvent) {
+    this.pageCtl.pageNumber = event.pageIndex;
+    this.pageCtl.pageSize = event.pageSize;
+    this.search();
+  }
+
+  clearForm() {
+    this.form.reset({
+      ${columns.map(c => columnToFieldJava(c.column) + ': \'\',').join('\n      ')}
+    });
+    this.enableSearch = false;
+    this.isFirstSearch = true;
+  }
+
+  alertWarn(e: any) {
+    this.alert.show({
+      title: 'Alerta',
+      message: e,
+      iconClass: 'fa-solid fa-circle-exclamation',
+      type: 'warning',
+      timeout: 15000,
+    });
+  }
+
+}
+  `;
+  return datatableTemplate;
+}
+

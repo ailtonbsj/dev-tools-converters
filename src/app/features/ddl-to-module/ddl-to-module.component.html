@@ -6,7 +6,7 @@
     </mat-card-header>
 
     <mat-card-content>
-      <form class="module-form" (ngSubmit)="generateBoilerplate()">
+      <form #moduleForm="ngForm" class="module-form" (ngSubmit)="generateBoilerplate(moduleForm)">
         <div class="form-grid">
           <mat-form-field appearance="outline">
             <mat-label>Dialeto SQL</mat-label>
@@ -22,8 +22,13 @@
               matInput
               type="text"
               name="pascalCaseModuleName"
+              required
+              #pascalCaseModuleNameControl="ngModel"
               [ngModel]="pascalCaseModuleName()"
               (ngModelChange)="pascalCaseModuleName.set($event)" />
+            @if (pascalCaseModuleNameControl.invalid && (pascalCaseModuleNameControl.touched || moduleForm.submitted)) {
+              <mat-error>Informe o nome do módulo em PascalCase.</mat-error>
+            }
           </mat-form-field>
 
           <mat-form-field appearance="outline">
@@ -32,8 +37,13 @@
               matInput
               type="text"
               name="humanModuleName"
+              required
+              #humanModuleNameControl="ngModel"
               [ngModel]="humanModuleName()"
               (ngModelChange)="humanModuleName.set($event)" />
+            @if (humanModuleNameControl.invalid && (humanModuleNameControl.touched || moduleForm.submitted)) {
+              <mat-error>Informe o nome do módulo para seres humanos.</mat-error>
+            }
           </mat-form-field>
         </div>
 

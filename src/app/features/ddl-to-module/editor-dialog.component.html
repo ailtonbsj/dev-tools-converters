@@ -1,0 +1,36 @@
+<section class="editor-shell">
+  <aside class="activity-bar" aria-label="Arquivos gerados">
+    <div class="activity-title">EXPLORER</div>
+
+    <nav class="file-tabs" aria-label="Arquivos">
+      @for (tab of tabs(); track tab.id) {
+        <button
+          type="button"
+          class="file-tab"
+          [class.active]="tab.id === activeTabId()"
+          (click)="selectTab(tab.id)">
+          <span class="material-symbols-outlined file-icon" aria-hidden="true">{{ tab.icon }}</span>
+          <span>{{ tab.label }}</span>
+        </button>
+      }
+    </nav>
+  </aside>
+
+  <main class="editor-main">
+    <header class="editor-header">
+      <div>
+        <div class="window-title">{{ activeTab().label }}</div>
+        <div class="window-subtitle">{{ data.humanModuleName || 'Boilerplate do módulo' }}</div>
+      </div>
+
+      <div class="header-actions">
+        <button mat-button type="button" (click)="copyActiveCode()">Copiar</button>
+        <button mat-button mat-dialog-close type="button">Fechar</button>
+      </div>
+    </header>
+
+    <section class="code-surface" [attr.aria-label]="activeTab().label">
+      <pre><code [highlight]="activeTab().code" [language]="activeTab().language"></code></pre>
+    </section>
+  </main>
+</section>

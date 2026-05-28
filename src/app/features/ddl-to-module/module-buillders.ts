@@ -1,5 +1,6 @@
 import { PgParser } from '@supabase/pg-parser';
 import { DatabaseTable, TableColunm } from "./database-table.model";
+import { plural } from '@umatch/pluralize-ptbr';
 
 export type Dialect = 'postgresql' | 'oracle';
 
@@ -19,8 +20,12 @@ export function snakeToPascalCase(snake: string) {
   return snake.split('_').map(t => capitalLetter(t)).join('');
 }
 
+export function pascalToKebabCase(pascal: string) {
+  return pascal.replace(/([a-z])([A-Z])/g, '$1 $2').replaceAll(' ', '-').toLowerCase();
+}
+
 export function normalizeColumnOfTable(snakeColunm: string) {
-  let res = snakeColunm.toLowerCase().replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^hr_|^vr_|^vl_/g,'') +
+  let res = snakeColunm.toLowerCase().replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^tp_|^hr_|^vr_|^vl_/g,'') +
     ((/^cd_/i).test(snakeColunm.toLowerCase()) ? 'Id' : '');
 		return snakeColunm.toLowerCase().includes('ci_') ? 'id' : res;
 }
@@ -254,7 +259,7 @@ public class ${entityName} implements Serializable {\n\n`;
 	for(const col of schema.columns) {
 		const unique = col.isUnique ? `, unique = true` : '';
 		let normalizedColunm = col.column.toLowerCase()
-			.replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^hr_|^vr_|^vl_/g,'') + ((/^cd_/i).test(col.column.toLowerCase()) ? 'Id' : '');
+			.replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^tp_|^hr_|^vr_|^vl_/g,'') + ((/^cd_/i).test(col.column.toLowerCase()) ? 'Id' : '');
 		normalizedColunm = col.column.toLowerCase().includes('ci_') ? 'id' : normalizedColunm;
 		const columnName = snakeToCamelCase(normalizedColunm);
 		let columnType = 'UNKNOWN_TYPE';
@@ -326,6 +331,21 @@ public class ${entityName} implements Serializable {\n\n`;
   return entityJPA;
 }
 
+export async function buildRepositoryJPAFromDdl(moduleName: string, ddl: string, dialect: Dialect): Promise<string> {
+  const schema = await dllToAst(ddl);
+  const columns = schema.columns;
+  const primaries = columns.filter(col => col.isPrimary);
+
+  const pkType = columnToTypeJava(primaries[0], dialect);
+  return `
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ${moduleName}Repository extends JpaRepository<${moduleName}, ${pkType}> {
+}
+`;
+
+}
+
 export async function buildEntityMyBatisFromDdl(ddl: string, dialect: Dialect): Promise<string> {
   const schema = await dllToAst(ddl);
 
@@ -346,7 +366,7 @@ public class ${entityName} implements Serializable {\n\n`;
 	for(const col of schema.columns) {
 		const unique = col.isUnique ? `, unique = true` : '';
 		let normalizedColunm = col.column.toLowerCase()
-			.replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^hr_|^vr_|^vl_/g,'') + ((/^cd_/i).test(col.column.toLowerCase()) ? 'Id' : '');
+			.replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^tp_|^hr_|^vr_|^vl_/g,'') + ((/^cd_/i).test(col.column.toLowerCase()) ? 'Id' : '');
 		normalizedColunm = col.column.toLowerCase().includes('ci_') ? 'id' : normalizedColunm;
 		const columnName = snakeToCamelCase(normalizedColunm);
 		let columnType = 'UNKNOWN_TYPE';
@@ -452,13 +472,39 @@ export async function buildMyBatisDAOFromDdl(ddl: string, dialect: Dialect): Pro
     return `entry("${field}",${space}"e.${col.column}")`;
   });
 
+  let findByExamplePaginatedAndSortedSQL;
+  if(dialect === 'oracle') {
+    findByExamplePaginatedAndSortedSQL = `select * from (
+            select row_.*, rownum rownum_ from (
+
+              select e.* from ${schema.schema}.${schema.table} e
+              %s
+              order by
+                %s
+
+            ) row_
+          )
+          where
+            rownum_ <= #{pageable.offset} + #{pageable.pageSize} and
+            rownum_ > #{pageable.offset}`;
+  } else {
+    findByExamplePaginatedAndSortedSQL = `select e.* from ${schema.schema}.${schema.table} e
+          %s
+          order by
+            %s
+          limit #{pageable.offset} + #{pageable.pageSize}
+          offset #{pageable.offset}`;
+  }
+
   let daoTemplate = `
 import org.apache.ibatis.annotations.*;
+import org.springframework.data.domain.Pageable;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
-import java.util.Optional;
-
+import java.util.*;
+import java.util.stream.*;
 import static java.util.Map.entry;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @Mapper
 public interface ${entityName}DAO {
@@ -493,7 +539,7 @@ public interface ${entityName}DAO {
     int update(${entityName} model);
 
     @Delete("delete from ${schema.schema}.${schema.table} where ${primariesPredicate.join(', ')}")
-    int deleteById(${primariesField.join(', ')});
+    boolean deleteById(${primariesField.join(', ')});
 
     @ResultMap("${entityNameCamel}ResultMap")
     @SelectProvider(type = SQLProvider.class,  method = "findByExamplePaginatedAndSorted")
@@ -506,19 +552,7 @@ public interface ${entityName}DAO {
 
       public String findByExamplePaginatedAndSorted(${entityName} example, Pageable pageable) {
         return """
-          select * from (
-            select row_.*, rownum rownum_ from (
-
-              select e.* from ${schema.schema}.${schema.table} e
-              %s
-              order by
-                %s
-
-            ) row_
-          )
-          where
-            rownum_ <= #{pageable.offset} + #{pageable.pageSize} and
-            rownum_ > #{pageable.offset}
+          ${findByExamplePaginatedAndSortedSQL}
         """.formatted(buildWhere(example), buildOrderBy(pageable));
       }
 
@@ -562,6 +596,37 @@ public interface ${entityName}DAO {
   `;
 
   return daoTemplate;
+}
+
+export async function buildServiceFromDdl(moduleName: string, ddl: string, dialect: Dialect): Promise<string> {
+  const schema = await dllToAst(ddl);
+  const columns = schema.columns;
+  const primaries = columns.filter(col => col.isPrimary);
+
+  const pkId = columnToFieldJava(primaries[0].column);
+  const pkType = columnToTypeJava(primaries[0], dialect);
+
+  return `
+import org.springframework.data.domain.*;
+import java.util.*;
+
+public interface ${moduleName}Service {
+
+    Optional<${moduleName}DTO> show(${pkType} ${pkId});
+
+    List<${moduleName}DTO> index();
+
+    void create(${moduleName}DTO dto);
+
+    void update(${pkType} ${pkId}, ${moduleName}DTO dto);
+
+    boolean destroy(${pkType} ${pkId});
+
+    Page<${moduleName}DTO> filter(${moduleName}DTO model, Pageable pageable);
+
+}
+`;
+
 }
 
 export async function buildSpringDTOFromDdl(ddl: string, dialect: Dialect): Promise<string> {
@@ -609,6 +674,196 @@ public class ${entityName}DTO implements Serializable {
   `;
 
   return template;
+}
+
+export async function buildMapperFromDdl(moduleName: string, ddl: string): Promise<string> {
+  return `
+import org.mapstruct.Mapper;
+import org.mapstruct.MappingConstants;
+import java.util.List;
+
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+public interface ${moduleName}Mapper {
+    ${moduleName}DTO toDto(${moduleName}Entity domain);
+    List<${moduleName}DTO> toDto(List<${moduleName}Entity> domain);
+    ${moduleName}Entity toDomain(${moduleName}DTO dto);
+    List<${moduleName}Entity> toDomain(List<${moduleName}DTO> dto);
+}
+  `;
+}
+
+export async function buildResourceFromDdl(moduleName: string, humanName: string, ddl: string, dialect: Dialect) {
+  const pluralKebabName = plural(pascalToKebabCase(moduleName));
+  const schema = await dllToAst(ddl);
+  const columns = schema.columns;
+  const primaries = columns.filter(col => col.isPrimary);
+
+  const pkId = columnToFieldJava(primaries[0].column);
+  const pkType = columnToTypeJava(primaries[0], dialect);
+
+  return `
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+import static software.amazon.awssdk.http.HttpStatusCode.CREATED;
+
+@Tag(name = "${humanName}")
+@RestController
+@RequestMapping("${pluralKebabName}")
+@RequiredArgsConstructor
+public class ${moduleName}Resource {
+
+    private final ${moduleName}Service service;
+
+    @GetMapping("{id}")
+    @Operation(summary = "Obtem um registro pelo ID")
+    public ResponseEntity<${moduleName}DTO> show(@PathVariable ${pkType} id) {
+        return service.show(id)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping
+    @ResponseStatus(value = HttpStatus.OK)
+    @Operation(summary = "Lista todos registros")
+    public List<${moduleName}DTO> index() {
+        return service.index();
+    }
+
+    @PostMapping
+    @Operation(summary = "Cria novo registro")
+    public ResponseEntity<Void> create(@Valid @RequestBody ${moduleName}DTO dto) {
+        service.create(dto);
+        return ResponseEntity.status(CREATED).build();
+    }
+
+    @PutMapping("{id}")
+    @Operation(summary = "Atualiza um registro por completo")
+    public ResponseEntity<Void> update(@PathVariable ${pkType} id, @Valid @RequestBody ${moduleName}DTO dto) {
+        service.update(id, dto);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("{id}")
+    @Operation(summary = "Remove um registro pelo ID")
+    public ResponseEntity<Void> destroy(@PathVariable ${pkType} id) {
+        if (service.destroy(id)) return ResponseEntity.ok().build();
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("filter")
+    @ResponseStatus(value = HttpStatus.OK)
+    @Operation(summary = "Filtra registros por exemplo")
+    public Page<${moduleName}DTO> filter(
+            ${moduleName}DTO example,
+            @RequestParam(defaultValue = "0") Integer pageNumber,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(defaultValue = "asc") String[] directions,
+            @RequestParam(defaultValue = "id") String[] sortProps) {
+        var sort = Util.directionPropsToOrders(directions, sortProps);
+        var pageable = PageRequest.of(pageNumber, pageSize, sort);
+        return service.filter(example, pageable);
+    }
+
+}
+`;
+}
+
+export async function buildImplementationJPAFromDdl(moduleName: string, ddl: string, dialect: Dialect) {
+  const schema = await dllToAst(ddl);
+  const columns = schema.columns;
+  const primaries = columns.filter(col => col.isPrimary);
+
+  const pkId = columnToFieldJava(primaries[0].column);
+  const pkType = columnToTypeJava(primaries[0], dialect);
+
+  return `
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Example;
+import org.springframework.data.domain.ExampleMatcher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
+import java.util.Optional;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class ${moduleName}ServiceImpl implements ${moduleName}Service {
+
+    private final ${moduleName}Repository repository;
+    private final ${moduleName}Mapper mapper;
+
+    @Override
+    public Optional<${moduleName}DTO> show(${pkType} id) {
+        return repository.findById(id).map(mapper::toDto);
+    }
+
+    @Override
+    public List<${moduleName}DTO> index() {
+        return mapper.toDto(repository.findAll());
+    }
+
+    @Override
+    public void create(${moduleName}DTO dto) {
+        try {
+            var domain = mapper.toDomain(dto);
+            repository.save(domain);
+        } catch (Exception e) {
+            log.warn("{}", e.getCause().getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falha ao salvar.");
+        }
+    }
+
+    @Override
+    public void update(${pkType} id, ${moduleName}DTO dto) {
+        try {
+            var domain = mapper.toDomain(dto);
+            domain.setId(id);
+            repository.save(domain);
+        }  catch (Exception e) {
+            log.warn("{}", e.getCause().getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falha ao atualizar.");
+        }
+    }
+
+    @Override
+    public boolean destroy(${pkType} id) {
+        try {
+            if(repository.findById(id).isEmpty()) return false;
+            repository.deleteById(id);
+            return true;
+        } catch (Exception e) {
+            log.warn("{}", e.getCause().getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falha ao remover.");
+        }
+    }
+
+    @Override
+    public Page<${moduleName}DTO> filter(${moduleName}DTO dto, Pageable pageable) {
+        var domain = mapper.toDomain(dto);
+        ExampleMatcher matcher = ExampleMatcher.matching().withIgnoreCase()
+            .withStringMatcher(ExampleMatcher.StringMatcher.CONTAINING);
+        var example = Example.of(domain, matcher);
+        var result = repository.findAll(example, pageable);
+        return result.map(mapper::toDto);
+    }
+}
+`;
 }
 
 export async function buildAngularModelFromDdl(ddl: string, dialect: Dialect): Promise<string> {
@@ -674,7 +929,6 @@ import { PageEvent } from '@angular/material/paginator';
 import { PageControl } from 'src/app/shared/models/page-control.model';
 import { firstValueFrom } from 'rxjs';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
-import { AlertService } from '@seduc/ngx-components';
 import { SpinnerTextService } from 'src/app/shared/services/spinner-text.service';
 import { MatSort, Sort } from '@angular/material/sort';
 import { ${entityName} } from '../${entityNameSnake}.model';

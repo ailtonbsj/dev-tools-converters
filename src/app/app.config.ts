@@ -10,10 +10,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     provideAnimationsAsync(),
-    {
-      provide: LOCALE_ID,
-      useValue: 'pt-BR'
-    },
+    { provide: LOCALE_ID, useValue: 'pt-BR' },
     provideHighlightOptions({
       lineNumbersLoader: () => import('ngx-highlightjs/line-numbers'),
       coreLibraryLoader: () => import('highlight.js/lib/core'),

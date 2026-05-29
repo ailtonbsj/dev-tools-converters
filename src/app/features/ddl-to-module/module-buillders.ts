@@ -138,7 +138,7 @@ export function columnToTypeTypeScript(col: TableColunm, dialect: Dialect) {
   return columnType;
 }
 
-export async function dllToAst(ddl: string): Promise<DatabaseTable> {
+export async function sqlCreateTableToAST(ddl: string): Promise<DatabaseTable> {
   const parser = new PgParser({ version: 17 });
 	const { tree } = await parser.parse(ddl);
 	if(tree == null || tree.stmts == null || tree.stmts[0].stmt == null) {
@@ -236,10 +236,7 @@ export async function dllToAst(ddl: string): Promise<DatabaseTable> {
   return schema;
 }
 
-export async function buildEntityJPAFromDdl(ddl: string, dialect: Dialect): Promise<string> {
-  const schema = await dllToAst(ddl);
-
-	const entityName = snakeToPascalCase(schema.table.replace('tb_', ''));
+export async function buildEntityJPAFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
 	let entityJPA = `
 import jakarta.persistence.*;
 import lombok.*;
@@ -254,7 +251,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
-public class ${entityName} implements Serializable {\n\n`;
+public class ${moduleName} implements Serializable {\n\n`;
 
 	for(const col of schema.columns) {
 		const unique = col.isUnique ? `, unique = true` : '';
@@ -331,8 +328,7 @@ public class ${entityName} implements Serializable {\n\n`;
   return entityJPA;
 }
 
-export async function buildRepositoryJPAFromDdl(moduleName: string, ddl: string, dialect: Dialect): Promise<string> {
-  const schema = await dllToAst(ddl);
+export async function buildRepositoryJPAFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
   const columns = schema.columns;
   const primaries = columns.filter(col => col.isPrimary);
 
@@ -346,8 +342,7 @@ public interface ${moduleName}Repository extends JpaRepository<${moduleName}, ${
 
 }
 
-export async function buildEntityMyBatisFromDdl(ddl: string, dialect: Dialect): Promise<string> {
-  const schema = await dllToAst(ddl);
+export async function buildEntityMyBatisFromDdl(schema: DatabaseTable, dialect: Dialect): Promise<string> {
 
 	const entityName = snakeToPascalCase(schema.table.replace('tb_', ''));
 	let entity = `
@@ -437,8 +432,7 @@ public class ${entityName} implements Serializable {\n\n`;
   return entity;
 }
 
-export async function buildMyBatisDAOFromDdl(ddl: string, dialect: Dialect): Promise<string> {
-  const schema = await dllToAst(ddl);
+export async function buildMyBatisDAOFromDdl(schema: DatabaseTable, dialect: Dialect): Promise<string> {
 	const entityName = snakeToPascalCase(schema.table.replace('tb_', ''));
   const entityNameCamel = snakeToCamelCase(schema.table.replace('tb_', ''));
   const columns = schema.columns;
@@ -598,8 +592,7 @@ public interface ${entityName}DAO {
   return daoTemplate;
 }
 
-export async function buildServiceFromDdl(moduleName: string, ddl: string, dialect: Dialect): Promise<string> {
-  const schema = await dllToAst(ddl);
+export async function buildServiceFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
   const columns = schema.columns;
   const primaries = columns.filter(col => col.isPrimary);
 
@@ -616,21 +609,20 @@ public interface ${moduleName}Service {
 
     List<${moduleName}DTO> index();
 
-    void create(${moduleName}DTO dto);
+    void create(${moduleName}DTO model);
 
-    void update(${pkType} ${pkId}, ${moduleName}DTO dto);
+    void update(${pkType} ${pkId}, ${moduleName}DTO model);
 
     boolean destroy(${pkType} ${pkId});
 
-    Page<${moduleName}DTO> filter(${moduleName}DTO model, Pageable pageable);
+    Page<${moduleName}DTO> filter(${moduleName}DTO example, Pageable pageable);
 
 }
 `;
 
 }
 
-export async function buildSpringDTOFromDdl(ddl: string, dialect: Dialect): Promise<string> {
-  const schema = await dllToAst(ddl);
+export async function buildSpringDTOFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
 	const entityName = snakeToPascalCase(schema.table.replace('tb_', ''));
   const columns = schema.columns;
 
@@ -653,7 +645,7 @@ export async function buildSpringDTOFromDdl(ddl: string, dialect: Dialect): Prom
   });
 
 
-  let template = `
+  return `
 
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -666,35 +658,36 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
-public class ${entityName}DTO implements Serializable {
+public class ${moduleName}DTO implements Serializable {
 
   ${properties.join('\n\n  ')}
 
 }
-  `;
+`;
 
-  return template;
 }
 
 export async function buildMapperFromDdl(moduleName: string, ddl: string): Promise<string> {
+
   return `
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingConstants;
 import java.util.List;
 
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING, uses = {
+  GenericMapper.class
+})
 public interface ${moduleName}Mapper {
-    ${moduleName}DTO toDto(${moduleName}Entity domain);
-    List<${moduleName}DTO> toDto(List<${moduleName}Entity> domain);
-    ${moduleName}Entity toDomain(${moduleName}DTO dto);
-    List<${moduleName}Entity> toDomain(List<${moduleName}DTO> dto);
-}
-  `;
+    ${moduleName}DTO toDto(${moduleName} domain);
+    List<${moduleName}DTO> toDto(List<${moduleName}> domain);
+    ${moduleName} toDomain(${moduleName}DTO dto);
+    List<${moduleName}> toDomain(List<${moduleName}DTO> dto);
+}`;
+
 }
 
-export async function buildResourceFromDdl(moduleName: string, humanName: string, ddl: string, dialect: Dialect) {
+export async function buildResourceFromDdl(moduleName: string, humanName: string, schema: DatabaseTable, dialect: Dialect) {
   const pluralKebabName = plural(pascalToKebabCase(moduleName));
-  const schema = await dllToAst(ddl);
   const columns = schema.columns;
   const primaries = columns.filter(col => col.isPrimary);
 
@@ -778,8 +771,7 @@ public class ${moduleName}Resource {
 `;
 }
 
-export async function buildImplementationJPAFromDdl(moduleName: string, ddl: string, dialect: Dialect) {
-  const schema = await dllToAst(ddl);
+export async function buildImplementationJPAFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect) {
   const columns = schema.columns;
   const primaries = columns.filter(col => col.isPrimary);
 
@@ -854,36 +846,32 @@ public class ${moduleName}ServiceImpl implements ${moduleName}Service {
     }
 
     @Override
-    public Page<${moduleName}DTO> filter(${moduleName}DTO dto, Pageable pageable) {
-        var domain = mapper.toDomain(dto);
+    public Page<${moduleName}DTO> filter(${moduleName}DTO example, Pageable pageable) {
+        var domain = mapper.toDomain(example);
         ExampleMatcher matcher = ExampleMatcher.matching().withIgnoreCase()
             .withStringMatcher(ExampleMatcher.StringMatcher.CONTAINING);
-        var example = Example.of(domain, matcher);
-        var result = repository.findAll(example, pageable);
+        var sample = Example.of(domain, matcher);
+        var result = repository.findAll(sample, pageable);
         return result.map(mapper::toDto);
     }
 }
 `;
 }
 
-export async function buildAngularModelFromDdl(ddl: string, dialect: Dialect): Promise<string> {
-  const schema = await dllToAst(ddl);
-	const entityName = snakeToPascalCase(schema.table.replace('tb_', ''));
+export async function buildAngularModelFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
   const columns = schema.columns;
   const properties = columns.map(col => `${columnToFieldJava(col.column)}: ${columnToTypeTypeScript(col, dialect)}`);
 
   const modelTemplate = `
-export interface ${entityName} {
+export interface ${moduleName} {
   ${properties.join('\n  ')}
 }
   `;
   return modelTemplate;
 }
 
-export async function buildAngularDataTableFromDdl(ddl: string, dialect: Dialect): Promise<string> {
-  const schema = await dllToAst(ddl);
-  const entityNameSnake = schema.table.replace('tb_', '');
-  const entityName = snakeToPascalCase(entityNameSnake);
+export async function buildAngularDataTableFromDdl(moduleName: string, humanName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
+  const moduleNameKebab = pascalToKebabCase(moduleName);
   const columns = schema.columns;
 
   const formFields = columns.map(field => {
@@ -931,17 +919,18 @@ import { firstValueFrom } from 'rxjs';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { SpinnerTextService } from 'src/app/shared/services/spinner-text.service';
 import { MatSort, Sort } from '@angular/material/sort';
-import { ${entityName} } from '../${entityNameSnake}.model';
-import { ${entityName}Service } from '../${entityNameSnake}.service';
+import { SortIconComponent } from 'src/app/components/sort-icon/sort-icon.component';
+import { ${moduleName} } from '../${moduleNameKebab}.model';
+import { ${moduleName}Service } from '../${moduleNameKebab}.service';
 
 @Component({
-  selector: 'app-${entityNameSnake}-datatable',
-  imports: [ReactiveFormsModule, MaterialModule],
+  selector: 'app-${moduleNameKebab}-datatable',
+  imports: [ReactiveFormsModule, MaterialModule, SortIconComponent],
   template: \`
 <div class="container-fluid py-3">
   <div class="card">
     <div class="card-header bg-primary">
-      <h1>Consulta ${entityName}</h1>
+      <h1>Consulta ${humanName}</h1>
     </div>
     <div class="card-body">
       <form [formGroup]="form" (ngSubmit)="onSubmit()">
@@ -1027,214 +1016,6 @@ import { ${entityName}Service } from '../${entityNameSnake}.service';
 </div>
   \`,
   styles: [\`
-/* Flex helpers */
-
-.fx-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 16px;
-  --gap-diff: 16px;
-
-  & mat-form-field {
-    width: 100%;
-  }
-
-  >div {
-    min-width: 1px;
-    flex-grow: 1;
-    flex-shrink: 1;
-    flex-basis: calc(100% / 12 - var(--gap-diff));
-  }
-
-  >.fx-col-1 {
-    flex-basis: calc(100% / 12 - var(--gap-diff));
-  }
-
-  >.fx-col-2 {
-    flex-basis: calc(100% / 6 - var(--gap-diff));
-  }
-
-  >.fx-col-3 {
-    flex-basis: calc(100% / 4 - var(--gap-diff));
-  }
-
-  >.fx-col-4 {
-    flex-basis: calc(100% / 3 - var(--gap-diff));
-  }
-
-  >.fx-col-5 {
-    flex-basis: calc(5 * (100% / 12) - var(--gap-diff));
-  }
-
-  >.fx-col-6 {
-    flex-basis: calc(100% / 2 - var(--gap-diff));
-  }
-
-  >.fx-col-12 {
-    flex-basis: 100%;
-  }
-}
-
-@media (min-width: 992px) and (max-width: 1200px) {
-
-  .fx-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0 16px;
-    --gap-diff: 16px;
-
-    >div {
-      min-width: 1px;
-      flex-grow: 1;
-      flex-shrink: 1;
-      flex-basis: calc(100% / 6 - var(--gap-diff));
-    }
-
-    >.fx-col-1 {
-      flex-basis: calc(100% / 6 - var(--gap-diff));
-    }
-
-    >.fx-col-2 {
-      flex-basis: calc(100% / 3 - var(--gap-diff));
-    }
-
-    >.fx-col-3 {
-      flex-basis: calc(100% / 2 - var(--gap-diff));
-    }
-
-    >.fx-col-4 {
-      flex-basis: calc(2 * (100% / 3) - var(--gap-diff));
-    }
-
-    >.fx-col-5 {
-      flex-basis: calc(10 * (100% / 12) - var(--gap-diff));
-    }
-
-    >.fx-col-6,
-    >.fx-col-12 {
-      flex-basis: 100%;
-    }
-  }
-
-}
-
-@media (min-width: 768px) and (max-width: 992px) {
-
-  .fx-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0 16px;
-    --gap-diff: 16px;
-
-    >div {
-      min-width: 1px;
-      flex-grow: 1;
-      flex-shrink: 1;
-      flex-basis: calc(100% / 6 - var(--gap-diff));
-    }
-
-    >.fx-col-1 {
-      flex-basis: calc(100% / 6 - var(--gap-diff));
-    }
-
-    >.fx-col-2 {
-      flex-basis: calc(100% / 3 - var(--gap-diff));
-    }
-
-    >.fx-col-3 {
-      flex-basis: calc(100% / 2 - var(--gap-diff));
-    }
-
-    >.fx-col-4 {
-      flex-basis: calc(2 * (100% / 3) - var(--gap-diff));
-    }
-
-    >.fx-col-5 {
-      flex-basis: calc(10 * (100% / 12) - var(--gap-diff));
-    }
-
-    >.fx-col-6,
-    >.fx-col-12 {
-      flex-basis: 100%;
-    }
-  }
-
-}
-
-@media (min-width: 576px) and (max-width: 768px) {
-
-  .fx-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0 16px;
-    --gap-diff: 16px;
-
-    >div {
-      min-width: 1px;
-      flex-grow: 1;
-      flex-shrink: 1;
-      flex-basis: calc(100% / 4 - var(--gap-diff));
-    }
-
-    >.fx-col-1 {
-      flex-basis: calc(100% / 4 - var(--gap-diff));
-    }
-
-    >.fx-col-2 {
-      flex-basis: calc(100% / 2 - var(--gap-diff));
-    }
-
-    >.fx-col-3 {
-      flex-basis: calc(3 * (100% / 4) - var(--gap-diff));
-    }
-
-    >.fx-col-4,
-    >.fx-col-5,
-    >.fx-col-6,
-    >.fx-col-12 {
-      flex-basis: 100%;
-    }
-
-  }
-
-}
-
-@media (max-width: 576px) {
-
-  .fx-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0 16px;
-    --gap-diff: 16px;
-
-    >div {
-      min-width: 1px;
-      flex-grow: 1;
-      flex-shrink: 1;
-      flex-basis: 100%;
-    }
-
-    >.fx-col-1,
-    >.fx-col-2,
-    >.fx-col-3,
-    >.fx-col-4,
-    >.fx-col-5,
-    >.fx-col-6,
-    >.fx-col-12 {
-      flex-basis: 100%;
-    }
-
-  }
-
-}
-
-/* Fix panel header */
-
-.card-header > h1 {
-  font-size: 16pt;
-  margin: 0;
-}
-
 /* Fix Mat Table */
 
 .table-border-brown {
@@ -1275,29 +1056,14 @@ import { ${entityName}Service } from '../${entityNameSnake}.service';
 .datatable-panel::-webkit-scrollbar {
   height: 6px;
 }
-
-/* Fix Paginator */
-
-.pagination-bottom-border {
-  border-color: #dee2e6;
-  border-style: solid;
-  border-width: 0 1px 1px 1px;
-}
-
-/* Estilos adicionais */
-
-.w2-actions {
-  width: 116px !important;
-}
-
   \`]
 })
-export class ${entityName}DataTableComponent implements AfterViewInit {
+export class ${moduleName}DataTableComponent implements AfterViewInit {
 
   private fb = inject(FormBuilder);
   private alert = inject(AlertService);
   private spinnerText = inject(SpinnerTextService);
-  private service = inject(${entityName}Service);
+  private service = inject(${moduleName}Service);
 
   form = this.fb.group({
     ${columns.map(c => columnToFieldJava(c.column) + ': [\'\'],').join('\n    ')}
@@ -1307,19 +1073,19 @@ export class ${entityName}DataTableComponent implements AfterViewInit {
   enableSearch = false;
   isLoading = false;
 
-  datasource = new MatTableDataSource(<${entityName}[]>[]);
+  datasource = new MatTableDataSource(<${moduleName}[]>[]);
   displayedColumns: string[] = [${columns.map(c => '\'' + columnToFieldJava(c.column) + '\'').join(', ')}, 'actions'];
   displayFooter = ['footer'];
 
   readonly dataNotFound = 'Não foi informado!';
 
-  entity = <${entityName}>{};
-  entityPage = <Page<${entityName}>>{ size: 10 };
+  entity = <${moduleName}>{};
+  entityPage = <Page<${moduleName}>>{ size: 10 };
   pageCtl: PageControl = <PageControl>{
     pageNumber: 0,
     pageSize: 10,
-    directions: 'desc',
-    sortProps: 'id',
+    directions: '',
+    sortProps: '',
   };
 
   @ViewChild(MatSort) sortViewChild: MatSort = <MatSort>{};
@@ -1354,7 +1120,7 @@ export class ${entityName}DataTableComponent implements AfterViewInit {
     this.trimFields();
     if (this.form.valid) {
       this.pageCtl.pageNumber = 0;
-      this.entity = <${entityName}>{
+      this.entity = <${moduleName}>{
         ...this.form.value as any,
       };
       this.isFirstSearch = false;

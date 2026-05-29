@@ -3,7 +3,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Highlight } from 'ngx-highlightjs';
-import { buildAngularDataTableFromDdl, buildAngularModelFromDdl, buildEntityJPAFromDdl, buildEntityMyBatisFromDdl, buildImplementationJPAFromDdl, buildMapperFromDdl, buildMyBatisDAOFromDdl, buildRepositoryJPAFromDdl, buildResourceFromDdl, buildServiceFromDdl, buildSpringDTOFromDdl } from './module-buillders';
+import { buildAngularDataTableFromDdl, buildAngularModelFromDdl, buildEntityJPAFromDdl, buildEntityMyBatisFromDdl, buildImplementationJPAFromDdl, buildMapperFromDdl, buildMyBatisDAOFromDdl, buildRepositoryJPAFromDdl, buildResourceFromDdl, buildServiceFromDdl, buildSpringDTOFromDdl, sqlCreateTableToAST } from './module-buillders';
+import { DatabaseTable } from './database-table.model';
 
 export type EditorDialogData = {
   dialect: 'postgresql' | 'oracle';
@@ -19,6 +20,248 @@ type EditorTab = {
   language: string;
   code: string;
 };
+
+const stylesCss = `
+/* Flex helpers */
+
+.fx-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  --gap-diff: 16px;
+
+  & mat-form-field {
+    width: 100%;
+  }
+
+  >div {
+    min-width: 1px;
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: calc(100% / 12 - var(--gap-diff));
+  }
+
+  >.fx-col-1 {
+    flex-basis: calc(100% / 12 - var(--gap-diff));
+  }
+
+  >.fx-col-2 {
+    flex-basis: calc(100% / 6 - var(--gap-diff));
+  }
+
+  >.fx-col-3 {
+    flex-basis: calc(100% / 4 - var(--gap-diff));
+  }
+
+  >.fx-col-4 {
+    flex-basis: calc(100% / 3 - var(--gap-diff));
+  }
+
+  >.fx-col-5 {
+    flex-basis: calc(5 * (100% / 12) - var(--gap-diff));
+  }
+
+  >.fx-col-6 {
+    flex-basis: calc(100% / 2 - var(--gap-diff));
+  }
+
+  >.fx-col-12 {
+    flex-basis: 100%;
+  }
+}
+
+@media (min-width: 992px) and (max-width: 1200px) {
+
+  .fx-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 16px;
+    --gap-diff: 16px;
+
+    >div {
+      min-width: 1px;
+      flex-grow: 1;
+      flex-shrink: 1;
+      flex-basis: calc(100% / 6 - var(--gap-diff));
+    }
+
+    >.fx-col-1 {
+      flex-basis: calc(100% / 6 - var(--gap-diff));
+    }
+
+    >.fx-col-2 {
+      flex-basis: calc(100% / 3 - var(--gap-diff));
+    }
+
+    >.fx-col-3 {
+      flex-basis: calc(100% / 2 - var(--gap-diff));
+    }
+
+    >.fx-col-4 {
+      flex-basis: calc(2 * (100% / 3) - var(--gap-diff));
+    }
+
+    >.fx-col-5 {
+      flex-basis: calc(10 * (100% / 12) - var(--gap-diff));
+    }
+
+    >.fx-col-6,
+    >.fx-col-12 {
+      flex-basis: 100%;
+    }
+  }
+
+}
+
+@media (min-width: 768px) and (max-width: 992px) {
+
+  .fx-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 16px;
+    --gap-diff: 16px;
+
+    >div {
+      min-width: 1px;
+      flex-grow: 1;
+      flex-shrink: 1;
+      flex-basis: calc(100% / 6 - var(--gap-diff));
+    }
+
+    >.fx-col-1 {
+      flex-basis: calc(100% / 6 - var(--gap-diff));
+    }
+
+    >.fx-col-2 {
+      flex-basis: calc(100% / 3 - var(--gap-diff));
+    }
+
+    >.fx-col-3 {
+      flex-basis: calc(100% / 2 - var(--gap-diff));
+    }
+
+    >.fx-col-4 {
+      flex-basis: calc(2 * (100% / 3) - var(--gap-diff));
+    }
+
+    >.fx-col-5 {
+      flex-basis: calc(10 * (100% / 12) - var(--gap-diff));
+    }
+
+    >.fx-col-6,
+    >.fx-col-12 {
+      flex-basis: 100%;
+    }
+  }
+
+}
+
+@media (min-width: 576px) and (max-width: 768px) {
+
+  .fx-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 16px;
+    --gap-diff: 16px;
+
+    >div {
+      min-width: 1px;
+      flex-grow: 1;
+      flex-shrink: 1;
+      flex-basis: calc(100% / 4 - var(--gap-diff));
+    }
+
+    >.fx-col-1 {
+      flex-basis: calc(100% / 4 - var(--gap-diff));
+    }
+
+    >.fx-col-2 {
+      flex-basis: calc(100% / 2 - var(--gap-diff));
+    }
+
+    >.fx-col-3 {
+      flex-basis: calc(3 * (100% / 4) - var(--gap-diff));
+    }
+
+    >.fx-col-4,
+    >.fx-col-5,
+    >.fx-col-6,
+    >.fx-col-12 {
+      flex-basis: 100%;
+    }
+
+  }
+
+}
+
+@media (max-width: 576px) {
+
+  .fx-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 16px;
+    --gap-diff: 16px;
+
+    >div {
+      min-width: 1px;
+      flex-grow: 1;
+      flex-shrink: 1;
+      flex-basis: 100%;
+    }
+
+    >.fx-col-1,
+    >.fx-col-2,
+    >.fx-col-3,
+    >.fx-col-4,
+    >.fx-col-5,
+    >.fx-col-6,
+    >.fx-col-12 {
+      flex-basis: 100%;
+    }
+
+  }
+
+}
+
+/* Estilos adicionais */
+
+.w2-actions {
+  width: 116px !important;
+}
+
+.w3-actions {
+  width: 165px !important;
+}
+
+.w4-actions {
+  width: 210px !important;
+}
+
+input[type="datetime-local"]::-webkit-inner-spin-button,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-inner-spin-button,
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-inner-spin-button,
+input[type="month"]::-webkit-calendar-picker-indicator {
+  display: block;
+  -webkit-appearance: button;
+}
+
+/* Fix panel header */
+
+.card-header > h1 {
+  font-size: 16pt;
+  margin: 0;
+}
+
+/* Fix paginator */
+
+.pagination-bottom-border {
+  border-color: #dee2e6;
+  border-style: solid;
+  border-width: 0 1px 1px 1px;
+}
+`;
 
 @Component({
   selector: 'app-editor-dialog',
@@ -129,6 +372,13 @@ export class EditorDialogComponent implements OnInit {
       icon: 'code',
       language: 'typescript',
       code: this.angularDataTable()
+    },
+    {
+      id: 'angularStyle',
+      label: 'Styles.css',
+      icon: 'style',
+      language: 'css',
+      code: stylesCss
     }
   ]);
   protected readonly activeTab = computed(() => {
@@ -156,17 +406,20 @@ export class EditorDialogComponent implements OnInit {
     const sqlInput = this.data.sqlInput;
     const moduleName = this.data.pascalCaseModuleName;
     const humanName = this.data.humanModuleName;
-    this.jpaEntity.set(await buildEntityJPAFromDdl(sqlInput, dialet));
-    this.jpaRepository.set(await buildRepositoryJPAFromDdl(moduleName, sqlInput, dialet));
-    this.myBatisEntity.set(await buildEntityMyBatisFromDdl(sqlInput, dialet));
-    this.myBatisDAO.set(await buildMyBatisDAOFromDdl(sqlInput, dialet));
-    this.springDTO.set(await buildSpringDTOFromDdl(sqlInput, dialet));
+
+    const schema: DatabaseTable = await sqlCreateTableToAST(this.data.sqlInput);
+
+    this.jpaEntity.set(await buildEntityJPAFromDdl(moduleName, schema, dialet));
+    this.jpaRepository.set(await buildRepositoryJPAFromDdl(moduleName, schema, dialet));
+    this.myBatisEntity.set(await buildEntityMyBatisFromDdl(schema, dialet));
+    this.myBatisDAO.set(await buildMyBatisDAOFromDdl(schema, dialet));
+    this.springDTO.set(await buildSpringDTOFromDdl(moduleName, schema, dialet));
     this.mapperStruct.set(await buildMapperFromDdl(moduleName, sqlInput));
-    this.serviceSpring.set(await buildServiceFromDdl(moduleName, sqlInput, dialet));
-    this.implementationJPA.set(await buildImplementationJPAFromDdl(moduleName, sqlInput, dialet));
-    this.resourceSpring.set(await buildResourceFromDdl(moduleName, humanName, sqlInput, dialet));
-    this.angularModel.set(await buildAngularModelFromDdl(sqlInput, dialet));
-    this.angularDataTable.set(await buildAngularDataTableFromDdl(sqlInput, dialet));
+    this.serviceSpring.set(await buildServiceFromDdl(moduleName, schema, dialet));
+    this.implementationJPA.set(await buildImplementationJPAFromDdl(moduleName, schema, dialet));
+    this.resourceSpring.set(await buildResourceFromDdl(moduleName, humanName, schema, dialet));
+    this.angularModel.set(await buildAngularModelFromDdl(moduleName, schema, dialet));
+    this.angularDataTable.set(await buildAngularDataTableFromDdl(moduleName, humanName, schema, dialet));
   }
 
 }

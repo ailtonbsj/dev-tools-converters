@@ -17,11 +17,6 @@ export const routes: Routes = [
           import('./features/home/home.component').then((m) => m.HomeComponent)
       },
       {
-        path: 'ddl-to-java',
-        loadComponent: () =>
-          import('./features/ddl-to-java/ddl-to-java.component').then((m) => m.DdlToJavaComponent)
-      },
-      {
         path: 'ddl-to-module',
         loadComponent: () =>
           import('./features/ddl-to-module/ddl-to-module.component').then((m) => m.DdlToModuleComponent)

@@ -707,7 +707,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static software.amazon.awssdk.http.HttpStatusCode.CREATED;
+import static org.springframework.http.HttpStatus.CREATED;
 
 @Tag(name = "${humanName}")
 @RestController

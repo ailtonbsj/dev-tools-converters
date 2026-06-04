@@ -3,7 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Highlight } from 'ngx-highlightjs';
-import { buildAngularDataTableFromDdl, buildAngularModelFromDdl, buildEntityJPAFromDdl, buildEntityMyBatisFromDdl, buildImplementationJPAFromDdl, buildMapperFromDdl, buildMyBatisDAOFromDdl, buildRepositoryJPAFromDdl, buildResourceFromDdl, buildServiceFromDdl, buildSpringDTOFromDdl, buildTestImplJPAFromDdl, sqlCreateTableToAST } from './module-buillders';
+import { buildAngularDataTableFromDdl, buildAngularModelFromDdl, buildEntityJPAFromDdl, buildEntityMyBatisFromDdl, buildImplementationJPAFromDdl, buildMapperFromDdl, buildMyBatisDAOFromDdl, buildRepositoryJPAFromDdl, buildResourceFromDdl, buildServiceFromDdl, buildSpringDTOFromDdl, buildTestImplJPAFromDdl, buildTestResourceFromDdl, sqlCreateTableToAST } from './module-buillders';
 import { DatabaseTable } from './database-table.model';
 
 export type EditorDialogData = {
@@ -286,6 +286,8 @@ export class EditorDialogComponent implements OnInit {
   implementationJPA = signal('');
   resourceSpring = signal('');
   testImplJPA = signal('');
+  testResource = signal('');
+
   angularModel = signal('');
   angularDataTable = signal('');
 
@@ -368,6 +370,13 @@ export class EditorDialogComponent implements OnInit {
       code: this.testImplJPA()
     },
     {
+      id: 'testResource',
+      label: 'Test Resource.java',
+      icon: 'coffee',
+      language: 'java',
+      code: this.testResource()
+    },
+    {
       id: 'angularModel',
       label: 'Model Angular.ts',
       icon: 'code',
@@ -427,6 +436,7 @@ export class EditorDialogComponent implements OnInit {
     this.implementationJPA.set(await buildImplementationJPAFromDdl(moduleName, schema, dialet));
     this.resourceSpring.set(await buildResourceFromDdl(moduleName, humanName, schema, dialet));
     this.testImplJPA.set(await buildTestImplJPAFromDdl(moduleName, humanName, schema, dialet));
+    this.testResource.set(await buildTestResourceFromDdl(moduleName, humanName, schema, dialet));
     this.angularModel.set(await buildAngularModelFromDdl(moduleName, schema, dialet));
     this.angularDataTable.set(await buildAngularDataTableFromDdl(moduleName, humanName, schema, dialet));
   }

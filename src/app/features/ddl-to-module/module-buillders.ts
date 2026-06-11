@@ -1,6 +1,7 @@
 import { PgParser } from '@supabase/pg-parser';
 import { DatabaseTable, TableColunm } from "./database-table.model";
 import { plural } from '@umatch/pluralize-ptbr';
+import { autoComplete, inputText, maskedAsNumber, staticSelect } from './ui-components';
 
 export type Dialect = 'postgresql' | 'oracle';
 
@@ -142,6 +143,23 @@ export function columnToTypeTypeScript(col: TableColunm, dialect: Dialect) {
   return columnType;
 }
 
+export function calculateLenChars(len: number, type: string) {
+  if(len != null && len > 0) return len;
+  // Postgres
+  else if(['smallint', 'smallserial'].includes(type)) return 4;
+  else if(['integer', 'serial'].includes(type)) return 9;
+  else if(['bigint', 'bigserial'].includes(type)) return 18;
+  else if(['decimal', 'numeric', 'text'].includes(type)) return 999;
+  else if(['real'].includes(type)) return 6;
+  else if(['double precision'].includes(type)) return 15;
+  else if(['money'].includes(type)) return 19;
+  else if(['char', 'character', 'boolean'].includes(type)) return 1;
+  else if(['timestamp'].includes(type)) return 19; // YYYY-MM-DDTHH:mm:ss
+  else if(['date'].includes(type)) return 10; // YYYY-MM-DD
+  else if(['time'].includes(type)) return 8; // HH:mm:ss
+  else return 9;
+}
+
 export async function sqlCreateTableToAST(ddl: string): Promise<DatabaseTable> {
   const parser = new PgParser({ version: 17 });
 	const { tree } = await parser.parse(ddl);
@@ -179,6 +197,7 @@ export async function sqlCreateTableToAST(ddl: string): Promise<DatabaseTable> {
           if(constraint.Constraint.contype === 'CONSTR_PRIMARY') schemaCol.isPrimary = true;
 				}
 			}
+      schemaCol.lenChars = calculateLenChars(schemaCol.len, schemaCol.type);
 			schema.columns.push(schemaCol);
 		} else if (elt.Constraint) {
 			if(elt.Constraint.contype === 'CONSTR_UNIQUE') {
@@ -232,9 +251,9 @@ export async function sqlCreateTableToAST(ddl: string): Promise<DatabaseTable> {
     const comment = com.comment;
     const col = com.object.List.items[2].String.sval;
     const schemaCol = schema.columns.find(i => i.column === col);
-    console.log(schemaCol);
     if(schemaCol) schemaCol.comment = comment;
-    if(schemaCol && comment.includes('Label:')) schemaCol.label = comment.split('Label:')[1].trim();
+    if(schemaCol && comment.includes('Label:')) schemaCol.label = comment.split('Label:')[1].split(',')[0].trim();
+    if(schemaCol && comment.includes('UI:')) schemaCol.uiComponent = comment.split('UI:')[1].split(',')[0].trim();
   })
 
   return schema;
@@ -613,9 +632,9 @@ public interface ${moduleName}Service {
 
     List<${moduleName}DTO> index();
 
-    void create(${moduleName}DTO model);
+    ${moduleName}DTO create(${moduleName}DTO model);
 
-    void update(${pkType} ${pkId}, ${moduleName}DTO model);
+    ${moduleName}DTO update(${pkType} ${pkId}, ${moduleName}DTO model);
 
     boolean destroy(${pkType} ${pkId});
 
@@ -642,7 +661,7 @@ export async function buildSpringDTOFromDdl(moduleName: string, schema: Database
       `@Size(max = ${col.len}, message = "O campo ${label} aceita no máximo ${col.len} caracteres.")\n  ` : '';
     const scaleMessage = col.scale > 0 ? ` e ${col.scale} decimais.` : '.';
     const digitValid = col.len > 0 && ['Integer', 'Long', 'BigDecimal', 'Double'].includes(type) && pkValid === '' ?
-      `@Digits(integer = ${col.len}, fraction = ${col.scale}, message = "O campo ${label} só permite ${col.len} digitos inteiros${scaleMessage}")\n  ` : '';
+      `@Digits(integer = ${col.len}, fraction = ${col.scale}, message = "O campo ${label} só permite ${col.len} dígitos inteiros${scaleMessage}")\n  ` : '';
     const labelComment = col.label != null && col.label !== '' ? `/* ${col.label} */\n  ` : '';
 
     return `${labelComment}${pkValid}${notNullValid}${sizeValid}${digitValid}private ${type} ${field};`;
@@ -713,8 +732,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static org.springframework.http.HttpStatus.CREATED;
-
 @Tag(name = "${humanName}")
 @RestController
 @RequestMapping("${pluralKebabName}")
@@ -743,17 +760,19 @@ public class ${moduleName}Resource {
     //@PreAuthorize("hasRole('${moduleNameSnakeUp}_INSERIR')")
     @PostMapping
     @Operation(summary = "Cria novo registro")
-    public ResponseEntity<Void> create(@Valid @RequestBody ${moduleName}DTO dto) {
-        service.create(dto);
-        return ResponseEntity.status(CREATED).build();
+    public ResponseEntity<${moduleName}DTO> create(@Valid @RequestBody ${moduleName}DTO dto) {
+        var created = service.create(dto);
+        var location = ServletUriComponentsBuilder
+            .fromCurrentRequest().path("/{id}").buildAndExpand(dto.getId()).toUri();
+        return ResponseEntity.created(location).body(created);
     }
 
     //@PreAuthorize("hasRole('${moduleNameSnakeUp}_EDITAR')")
     @PutMapping("{id}")
     @Operation(summary = "Atualiza um registro por completo")
-    public ResponseEntity<Void> update(@PathVariable ${pkType} id, @Valid @RequestBody ${moduleName}DTO dto) {
-        service.update(id, dto);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<${moduleName}DTO> update(@PathVariable ${pkType} id, @Valid @RequestBody ${moduleName}DTO dto) {
+        var updated = service.update(id, dto);
+        return ResponseEntity.ok(updated);
     }
 
     //@PreAuthorize("hasRole('${moduleNameSnakeUp}_REMOVER')")
@@ -823,10 +842,10 @@ public class ${moduleName}ServiceImpl implements ${moduleName}Service {
     }
 
     @Override
-    public void create(${moduleName}DTO dto) {
+    public ${moduleName}DTO create(${moduleName}DTO dto) {
         try {
             var domain = mapper.toDomain(dto);
-            repository.save(domain);
+            return mapper.toDto(repository.save(domain));
         } catch (Exception e) {
             log.warn("{}", e.getCause().getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falha ao salvar.");
@@ -834,11 +853,11 @@ public class ${moduleName}ServiceImpl implements ${moduleName}Service {
     }
 
     @Override
-    public void update(${pkType} id, ${moduleName}DTO dto) {
+    public ${moduleName}DTO update(${pkType} id, ${moduleName}DTO dto) {
         try {
             var domain = mapper.toDomain(dto);
             domain.setId(id);
-            repository.save(domain);
+            return mapper.toDto(repository.save(domain));
         }  catch (Exception e) {
             log.warn("{}", e.getCause().getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falha ao atualizar.");
@@ -1506,13 +1525,14 @@ export async function buildAngularDataTableFromDdl(moduleName: string, humanName
 
   const formFields = columns.map(field => {
     const fieldName = columnToFieldJava(field.column);
+    const length = field.len;
       return `
           <!-- ${field.label} -->
           <div class="fx-col-1">
             <mat-form-field appearance="outline">
               <mat-label>${field.label}</mat-label>
-              <input matInput type="text" formControlName="${fieldName}" />
-              @if(form.controls.${fieldName}.invalid){
+              <input matInput type="text" formControlName="${fieldName}" maxlength="${length}" />
+              @if (form.controls.${fieldName}.invalid) {
               <mat-error>Campo obrigatório.</mat-error>
               }
             </mat-form-field>
@@ -1549,13 +1569,14 @@ import { firstValueFrom } from 'rxjs';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { SpinnerTextService } from 'src/app/shared/services/spinner-text.service';
 import { MatSort, Sort } from '@angular/material/sort';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { SortIconComponent } from 'src/app/components/sort-icon/sort-icon.component';
 import { ${moduleName} } from '../${moduleNameKebab}.model';
 import { ${moduleName}Service } from '../${moduleNameKebab}.service';
 
 @Component({
   selector: 'app-${moduleNameKebab}-datatable',
-  imports: [ReactiveFormsModule, MaterialModule, SortIconComponent],
+  imports: [RouterModule, ReactiveFormsModule, MaterialModule, SortIconComponent],
   template: \`
 <div class="container-fluid py-3">
   <div class="card">
@@ -1577,7 +1598,7 @@ import { ${moduleName}Service } from '../${moduleNameKebab}.service';
           <button type="button" mat-raised-button (click)="clearForm()" [disabled]="isLoading">
             <i class="fa-solid fa-eraser"></i> Limpar
           </button>
-          <a routerLink="./new" class="ms-auto" [hidden]="true">
+          <a routerLink="./novo" class="ms-auto" [hidden]="true">
             <button type="button" color="primary" mat-raised-button>
               <i class="fa-solid fa-plus"></i>
               Novo
@@ -1607,7 +1628,7 @@ import { ${moduleName}Service } from '../${moduleNameKebab}.service';
               Ações
             </th>
             <td mat-cell *matCellDef="let el" class="text-center align-middle fs-6 w2-actions">
-              <button type="button" mat-icon-button color="primary" matTooltip="Visualizar">
+              <button type="button" mat-icon-button color="primary" matTooltip="Visualizar" (click)="showForm(el.id)">
                 <mat-icon>visibility</mat-icon>
               </button>
             </td>
@@ -1691,8 +1712,10 @@ import { ${moduleName}Service } from '../${moduleNameKebab}.service';
 export class ${moduleName}DataTableComponent implements AfterViewInit {
 
   private fb = inject(FormBuilder);
-  private alert = inject(AlertService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
   private spinnerText = inject(SpinnerTextService);
+  private alert = inject(AlertService);
   private service = inject(${moduleName}Service);
 
   form = this.fb.group({
@@ -1814,7 +1837,37 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
     });
   }
 
+  showForm(id: string) {
+    this.router.navigate([\`./\${id}/edicao\`], { relativeTo: this.route });
+  }
+
 }
   `;
   return datatableTemplate;
+}
+
+export async function buildAngularFormFromDdl(moduleName: string, humanName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
+  const columns = schema.columns;
+
+  const formFields = columns.map(field => {
+    const javaType = columnToTypeJava(field, dialect);
+    const fieldName = columnToFieldJava(field.column);
+    const fieldNamePascal = columnToPascalFieldJava(field.column);
+    const ui = field.uiComponent;
+
+    if(ui != null) {
+      if(ui === 'maskedAsNumber')
+        return maskedAsNumber(field.label, fieldName, field.lenChars);
+      else if(ui === 'staticSelect')
+        return staticSelect(field.label, fieldName, field.allowValues);
+      else if(ui === 'autoComplete')
+        return autoComplete(field.label, fieldName, fieldNamePascal);
+    } else {
+      if(['Integer', 'Long'].includes(javaType))
+        return maskedAsNumber(field.label, fieldName, field.lenChars);
+    }
+    return inputText(field.label, fieldName, field.lenChars);
+  });
+
+  return formFields.join('\n\n');
 }

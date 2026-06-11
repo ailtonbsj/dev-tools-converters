@@ -18,11 +18,11 @@ const sqlSample = `CREATE TABLE public.customer_account (
   active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP NOT NULL
 );
-COMMENT ON COLUMN public.customer_account.my_primary_key IS 'Label: My primary key';
-COMMENT ON COLUMN public.customer_account.customer_name  IS 'Label: Constomer name';
-COMMENT ON COLUMN public.customer_account.email          IS 'Label: E-mail';
-COMMENT ON COLUMN public.customer_account.active         IS 'Label: Active';
-COMMENT ON COLUMN public.customer_account.created_at     IS 'Label: Created at';
+COMMENT ON COLUMN public.customer_account.my_primary_key IS 'Label: My primary key, UI: maskedAsNumber';
+COMMENT ON COLUMN public.customer_account.customer_name  IS 'Label: Constomer name, UI: inputText';
+COMMENT ON COLUMN public.customer_account.email          IS 'Label: E-mail, UI: inputEmail';
+COMMENT ON COLUMN public.customer_account.active         IS 'Label: Active, UI: staticSelect';
+COMMENT ON COLUMN public.customer_account.created_at     IS 'Label: Created at, UI: inputDateTime';
 `;
 
 @Component({

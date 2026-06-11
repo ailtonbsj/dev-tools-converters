@@ -12,9 +12,11 @@ export interface TableColunm {
   column: string
   type: string
   len: number
+  lenChars: number
   scale: number
   references: string
   allowValues: string[]
   comment: string
   label: string
+  uiComponent: string
 }

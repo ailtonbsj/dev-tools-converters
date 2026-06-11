@@ -3,7 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Highlight } from 'ngx-highlightjs';
-import { buildAngularDataTableFromDdl, buildAngularModelFromDdl, buildEntityJPAFromDdl, buildEntityMyBatisFromDdl, buildImplementationJPAFromDdl, buildMapperFromDdl, buildMyBatisDAOFromDdl, buildRepositoryJPAFromDdl, buildResourceFromDdl, buildServiceFromDdl, buildSpringDTOFromDdl, buildTestImplJPAFromDdl, buildTestResourceFromDdl, sqlCreateTableToAST } from './module-buillders';
+import { buildAngularDataTableFromDdl, buildAngularFormFromDdl, buildAngularModelFromDdl, buildEntityJPAFromDdl, buildEntityMyBatisFromDdl, buildImplementationJPAFromDdl, buildMapperFromDdl, buildMyBatisDAOFromDdl, buildRepositoryJPAFromDdl, buildResourceFromDdl, buildServiceFromDdl, buildSpringDTOFromDdl, buildTestImplJPAFromDdl, buildTestResourceFromDdl, sqlCreateTableToAST } from './module-buillders';
 import { DatabaseTable } from './database-table.model';
 
 export type EditorDialogData = {
@@ -290,6 +290,7 @@ export class EditorDialogComponent implements OnInit {
 
   angularModel = signal('');
   angularDataTable = signal('');
+  angularForm = signal('');
 
   protected readonly tabs = computed<EditorTab[]>(() => [
     {
@@ -391,6 +392,13 @@ export class EditorDialogComponent implements OnInit {
       code: this.angularDataTable()
     },
     {
+      id: 'angularForm',
+      label: 'Form Angular.ts',
+      icon: 'code',
+      language: 'typescript',
+      code: this.angularForm()
+    },
+    {
       id: 'angularStyle',
       label: 'Styles.css',
       icon: 'style',
@@ -439,6 +447,8 @@ export class EditorDialogComponent implements OnInit {
     this.testResource.set(await buildTestResourceFromDdl(moduleName, humanName, schema, dialet));
     this.angularModel.set(await buildAngularModelFromDdl(moduleName, schema, dialet));
     this.angularDataTable.set(await buildAngularDataTableFromDdl(moduleName, humanName, schema, dialet));
+    this.angularForm.set(await buildAngularFormFromDdl(moduleName, humanName, schema, dialet));
+
   }
 
 }

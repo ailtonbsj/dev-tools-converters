@@ -62,13 +62,27 @@ export function autoComplete(label: string, fieldName: string, fieldNamePascal: 
           <div class="fx-col-2">
               <mat-form-field appearance="outline">
                   <mat-label>${label}</mat-label>
-                  <input matInput type="text" formControlName="${fieldName}" [matAutocomplete]="auto${fieldName}" (keyup)="onKeyUpAuto${fieldName}($event)" />
-                  <button type="button" matSuffix mat-icon-button (click)="clearAuto${fieldName}()" *ngIf="!isViewRead">
+                  <input matInput type="text" formControlName="${fieldName}" [matAutocomplete]="auto${fieldNamePascal}"
+                    (keyup)="onKeyUpAuto${fieldNamePascal}($event)" placeholder="Digite um termo para buscar" />
+                  @if (!isViewRead) {
+                  <button type="button" matSuffix mat-icon-button (click)="clearAuto${fieldNamePascal}()">
                       <mat-icon>close</mat-icon>
                   </button>
-                  <mat-autocomplete autoActiveFirstOption #auto${fieldName}="matAutocomplete"
-                      [displayWith]="displayWith${fieldName}()" (optionSelected)="selected${fieldName}()">
-                      <mat-option [value]="item" *ngFor="let item of ${fieldName}s">{{ item.target }}</mat-option>
+                  }
+                  <mat-autocomplete autoActiveFirstOption #auto${fieldNamePascal}="matAutocomplete"
+                      [displayWith]="displayWith${fieldNamePascal}()">
+                      @if(is${fieldNamePascal}Loading) {
+                      <mat-option class="list-item-loading" disabled="true">
+                        <i class="fa-solid fa-spinner fa-spin-pulse"></i> Carregando ...
+                      </mat-option>
+                      } @else if(has${fieldNamePascal}Fetched) {
+                        @for (item of ${fieldName}List; track item.id) {
+                        <mat-option [value]="item">{{ item.id }} - {{ item.target }}</mat-option>
+                        }
+                        @empty {
+                        <mat-option disabled>Nenhum registro encontrado.</mat-option>
+                        }
+                      }
                   </mat-autocomplete>
                   @if (form.controls.${fieldName}.invalid) {
                       <mat-error>Campo obrigatório.</mat-error>

@@ -437,7 +437,7 @@ export class EditorDialogComponent implements OnInit {
     this.jpaEntity.set(await buildEntityJPAFromDdl(moduleName, schema, dialet));
     this.jpaRepository.set(await buildRepositoryJPAFromDdl(moduleName, schema, dialet));
     this.myBatisEntity.set(await buildEntityMyBatisFromDdl(schema, dialet));
-    this.myBatisDAO.set(await buildMyBatisDAOFromDdl(schema, dialet));
+    this.myBatisDAO.set(await buildMyBatisDAOFromDdl(moduleName, schema, dialet));
     this.springDTO.set(await buildSpringDTOFromDdl(moduleName, schema, dialet));
     this.mapperStruct.set(await buildMapperFromDdl(moduleName, sqlInput));
     this.serviceSpring.set(await buildServiceFromDdl(moduleName, schema, dialet));

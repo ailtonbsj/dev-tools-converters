@@ -70,7 +70,7 @@ export function autoComplete(label: string, fieldName: string, fieldNamePascal: 
                   </button>
                   }
                   <mat-autocomplete autoActiveFirstOption #auto${fieldNamePascal}="matAutocomplete"
-                      [displayWith]="displayWith${fieldNamePascal}()">
+                      [displayWith]="displayWith${fieldNamePascal}()" (optionSelected)="selected${fieldNamePascal}()">
                       @if(is${fieldNamePascal}Loading) {
                       <mat-option class="list-item-loading" disabled="true">
                         <i class="fa-solid fa-spinner fa-spin-pulse"></i> Carregando ...

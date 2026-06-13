@@ -1926,7 +1926,7 @@ export async function buildAngularFormFromDdl(moduleName: string, humanName: str
   ${fieldName}Subject$: Subject<string> = new Subject();
   ${fieldName}List: ${fieldNamePascal}[] = [];
   is${fieldNamePascal}Loading = false;
-  this.has${fieldNamePascal}Fetched = true;
+  has${fieldNamePascal}Fetched = true;
 
   ${fieldName}Request(val: string): Observable<Page<${fieldNamePascal}>> {
     const pageCtl = <PageControl>{
@@ -1956,13 +1956,17 @@ export async function buildAngularFormFromDdl(moduleName: string, humanName: str
         : \`\${entity.target} - \${entity.id}\`;
   }
 
+  selected${fieldNamePascal}(event: MatAutocompleteSelectedEvent) {
+    console.log(event.option.value);
+  }
+
   init${fieldNamePascal}Autocomplete() {
     this.${fieldName}Subject$.asObservable().pipe(debounceTime(1000), switchMap((v) => this.${fieldName}Request(v)))
       .subscribe({
         next: (v) => {
           this.${fieldName}List = [...v.content];
           this.is${fieldNamePascal}Loading = false;
-          this.has${fieldNamePascal}Fetched = true;
+          this.has${fieldNamePascal}Fetched = false;
         },
         error: e => { this.is${fieldNamePascal}Loading = false; }
       });

@@ -3,7 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Highlight } from 'ngx-highlightjs';
-import { buildAngularDataTableFromDdl, buildAngularFormFromDdl, buildEntityMyBatisFromDdl, buildTestImplJPAFromDdl, buildTestResourceFromDdl, sqlCreateTableToAST } from './module-buillders';
+import { buildEntityMyBatisFromDdl, buildTestImplJPAFromDdl, buildTestResourceFromDdl, sqlCreateTableToAST } from './module-buillders';
 import { DatabaseTable } from './database-table.model';
 import { buildEntityJPAPrimaryKey } from './boilerplate-files/spring-pk-jpa';
 import { buildEntityJPAFromDdl } from './boilerplate-files/spring-entity-jpa';
@@ -15,6 +15,11 @@ import { buildMyBatisDAOFromDdl } from './boilerplate-files/spring-dao-mybatis';
 import { buildResourceFromDdl } from './boilerplate-files/spring-resource';
 import { buildMapperFromDdl } from './boilerplate-files/spring-mapper-struct';
 import { buildAngularModelFromDdl } from './boilerplate-files/angular-model';
+import { buildAngularServiceFromDdl } from './boilerplate-files/angular-service';
+import { buildAngularDataTableFromDdl } from './boilerplate-files/angular-datatable';
+import { buildAngularDataTableHTMLFromDdl } from './boilerplate-files/angular-datatable-html';
+import { buildAngularDataTableSCSSFromDdl } from './boilerplate-files/angular-datable-scss';
+import { buildAngularFormFromDdl } from './boilerplate-files/angular-form';
 
 export type EditorDialogData = {
   dialect: 'postgresql' | 'oracle';
@@ -300,7 +305,10 @@ export class EditorDialogComponent implements OnInit {
   testResource = signal('');
 
   angularModel = signal('');
+  angularService = signal('');
   angularDataTable = signal('');
+  angularDataTableHTML = signal('');
+  angularDataTableSCSS = signal('');
   angularForm = signal('');
 
   protected readonly tabs = computed<EditorTab[]>(() => [
@@ -403,11 +411,32 @@ export class EditorDialogComponent implements OnInit {
       code: this.angularModel()
     },
     {
-      id: 'angularDataTable',
+      id: 'angularService',
+      label: 'Service Angular.ts',
+      icon: 'code',
+      language: 'typescript',
+      code: this.angularService()
+    },
+    {
+      id: 'angularDataTableTS',
       label: 'DataTable Angular.ts',
       icon: 'code',
       language: 'typescript',
       code: this.angularDataTable()
+    },
+    {
+      id: 'angularDataTableHTML',
+      label: 'DataTable Angular.html',
+      icon: 'code_xml',
+      language: 'html',
+      code: this.angularDataTableHTML()
+    },
+    {
+      id: 'angularDataTableSCSS',
+      label: 'DataTable Angular.scss',
+      icon: 'style',
+      language: 'css',
+      code: this.angularDataTableSCSS()
     },
     {
       id: 'angularForm',
@@ -465,7 +494,10 @@ export class EditorDialogComponent implements OnInit {
     this.testImplJPA.set(await buildTestImplJPAFromDdl(moduleName, humanName, schema, dialet));
     this.testResource.set(await buildTestResourceFromDdl(moduleName, humanName, schema, dialet));
     this.angularModel.set(await buildAngularModelFromDdl(moduleName, schema, dialet));
+    this.angularService.set(await buildAngularServiceFromDdl(moduleName, schema, dialet));
     this.angularDataTable.set(await buildAngularDataTableFromDdl(moduleName, humanName, schema, dialet));
+    this.angularDataTableHTML.set(await buildAngularDataTableHTMLFromDdl(moduleName, humanName, schema, dialet));
+    this.angularDataTableSCSS.set(await buildAngularDataTableSCSSFromDdl());
     this.angularForm.set(await buildAngularFormFromDdl(moduleName, humanName, schema, dialet));
 
   }

@@ -5,11 +5,20 @@ export async function buildMapperFromDdl(moduleName: string, schema: DatabaseTab
   const columns = schema.columns;
   const primaries = columns.filter(col => col.isPrimary);
 
-  const getIdCompound = primaries.map(p => `dto.get${columnToPascalFieldJava(p.column)}()`);
+  const mappingIdCompound = primaries.length > 1 ? `\n    @Mapping(target = "id", expression = "java(toId(domain))")` : '';
+
+  const getIdCompound = primaries.map(p => `model.get${columnToPascalFieldJava(p.column)}()`);
 
   const toIdMethod = primaries.length > 1 ? `
 
-    default String toId(${moduleName}DTO dto) {
+    default String toId(${moduleName}DTO model) {
+        var key = new ${moduleName}PK(
+            ${ getIdCompound.join(', ')}
+        );
+        return Util.idToString(key);
+    }
+
+    default String toId(${moduleName} model) {
         var key = new ${moduleName}PK(
             ${ getIdCompound.join(', ')}
         );
@@ -17,7 +26,7 @@ export async function buildMapperFromDdl(moduleName: string, schema: DatabaseTab
     }` : '';
 
   return `
-import org.mapstruct.Mapper;
+import org.mapstruct.*;
 import org.mapstruct.MappingConstants;
 import java.util.List;
 
@@ -25,7 +34,7 @@ import java.util.List;
   GenericMapper.class
 })
 public interface ${moduleName}Mapper {
-
+${mappingIdCompound}
     ${moduleName}DTO toDto(${moduleName} domain);
 
     List<${moduleName}DTO> toDto(List<${moduleName}> domain);

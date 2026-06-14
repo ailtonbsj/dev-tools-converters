@@ -3,8 +3,18 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Highlight } from 'ngx-highlightjs';
-import { buildAngularDataTableFromDdl, buildAngularFormFromDdl, buildAngularModelFromDdl, buildEntityJPAFromDdl, buildEntityMyBatisFromDdl, buildImplementationJPAFromDdl, buildMapperFromDdl, buildMyBatisDAOFromDdl, buildRepositoryJPAFromDdl, buildResourceFromDdl, buildServiceFromDdl, buildSpringDTOFromDdl, buildTestImplJPAFromDdl, buildTestResourceFromDdl, sqlCreateTableToAST } from './module-buillders';
+import { buildAngularDataTableFromDdl, buildAngularFormFromDdl, buildEntityMyBatisFromDdl, buildTestImplJPAFromDdl, buildTestResourceFromDdl, sqlCreateTableToAST } from './module-buillders';
 import { DatabaseTable } from './database-table.model';
+import { buildEntityJPAPrimaryKey } from './boilerplate-files/spring-pk-jpa';
+import { buildEntityJPAFromDdl } from './boilerplate-files/spring-entity-jpa';
+import { buildRepositoryJPAFromDdl } from './boilerplate-files/spring-repository-jpa';
+import { buildSpringDTOFromDdl } from './boilerplate-files/spring-dto';
+import { buildServiceFromDdl } from './boilerplate-files/spring-service';
+import { buildImplementationJPAFromDdl } from './boilerplate-files/spring-service-impl-jpa';
+import { buildMyBatisDAOFromDdl } from './boilerplate-files/spring-dao-mybatis';
+import { buildResourceFromDdl } from './boilerplate-files/spring-resource';
+import { buildMapperFromDdl } from './boilerplate-files/spring-mapper-struct';
+import { buildAngularModelFromDdl } from './boilerplate-files/angular-model';
 
 export type EditorDialogData = {
   dialect: 'postgresql' | 'oracle';
@@ -276,6 +286,7 @@ export class EditorDialogComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   protected readonly activeTabId = signal('sql');
 
+  jpaPK = signal('');
   jpaEntity = signal('');
   jpaRepository = signal('');
   myBatisEntity = signal('');
@@ -299,6 +310,13 @@ export class EditorDialogComponent implements OnInit {
       icon: 'database',
       language: 'sql',
       code: this.data.sqlInput
+    },
+    {
+      id: 'jpaPK',
+      label: 'PK Composta JPA.java',
+      icon: 'coffee',
+      language: 'java',
+      code: this.jpaPK()
     },
     {
       id: 'jpaEntity',
@@ -434,12 +452,13 @@ export class EditorDialogComponent implements OnInit {
 
     const schema: DatabaseTable = await sqlCreateTableToAST(this.data.sqlInput);
 
+    this.jpaPK.set(await buildEntityJPAPrimaryKey(moduleName, schema, dialet));
     this.jpaEntity.set(await buildEntityJPAFromDdl(moduleName, schema, dialet));
     this.jpaRepository.set(await buildRepositoryJPAFromDdl(moduleName, schema, dialet));
     this.myBatisEntity.set(await buildEntityMyBatisFromDdl(schema, dialet));
     this.myBatisDAO.set(await buildMyBatisDAOFromDdl(moduleName, schema, dialet));
     this.springDTO.set(await buildSpringDTOFromDdl(moduleName, schema, dialet));
-    this.mapperStruct.set(await buildMapperFromDdl(moduleName, sqlInput));
+    this.mapperStruct.set(await buildMapperFromDdl(moduleName, schema, sqlInput));
     this.serviceSpring.set(await buildServiceFromDdl(moduleName, schema, dialet));
     this.implementationJPA.set(await buildImplementationJPAFromDdl(moduleName, schema, dialet));
     this.resourceSpring.set(await buildResourceFromDdl(moduleName, humanName, schema, dialet));

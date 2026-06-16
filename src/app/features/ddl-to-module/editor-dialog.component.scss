@@ -33,6 +33,17 @@
   display: flex;
   flex-direction: column;
   padding: 0.35rem 0;
+  height: calc(720px - 13.984px - 13.600px - 10.400px - 5.600px);
+  overflow-y: auto;
+}
+
+.file-tabs::-webkit-scrollbar-thumb, .code-surface::-webkit-scrollbar-thumb {
+  background-color: rgb(255, 255, 255, 0.2);
+  border-radius: 6px;
+}
+
+.file-tabs::-webkit-scrollbar, .code-surface::-webkit-scrollbar {
+  width: 6px;
 }
 
 .file-tab {

@@ -3,8 +3,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Highlight } from 'ngx-highlightjs';
-import { buildEntityMyBatisFromDdl, buildTestImplJPAFromDdl, buildTestResourceFromDdl, sqlCreateTableToAST } from './module-buillders';
-import { DatabaseTable } from './database-table.model';
+import { buildEntityMyBatisFromDdl, buildTestImplJPAFromDdl, buildTestResourceFromDdl } from './module-buillders';
+import { DatabaseTable } from './sql-datastructs/database.model';
 import { buildEntityJPAPrimaryKey } from './boilerplate-files/spring-pk-jpa';
 import { buildEntityJPAFromDdl } from './boilerplate-files/spring-entity-jpa';
 import { buildRepositoryJPAFromDdl } from './boilerplate-files/spring-repository-jpa';
@@ -20,6 +20,8 @@ import { buildAngularDataTableFromDdl } from './boilerplate-files/angular-datata
 import { buildAngularDataTableHTMLFromDdl } from './boilerplate-files/angular-datatable-html';
 import { buildAngularDataTableSCSSFromDdl } from './boilerplate-files/angular-datable-scss';
 import { buildAngularFormFromDdl } from './boilerplate-files/angular-form';
+import { buildAngularFormHTMLFromDdl } from './boilerplate-files/angular-form-html';
+import { sqlCreateTableToAST } from './sql-datastructs/datastructs';
 
 export type EditorDialogData = {
   dialect: 'postgresql' | 'oracle';
@@ -310,6 +312,7 @@ export class EditorDialogComponent implements OnInit {
   angularDataTableHTML = signal('');
   angularDataTableSCSS = signal('');
   angularForm = signal('');
+  angularFormHTML = signal('');
 
   protected readonly tabs = computed<EditorTab[]>(() => [
     {
@@ -446,6 +449,13 @@ export class EditorDialogComponent implements OnInit {
       code: this.angularForm()
     },
     {
+      id: 'angularFormHTML',
+      label: 'Form Angular.html',
+      icon: 'code_xml',
+      language: 'html',
+      code: this.angularFormHTML()
+    },
+    {
       id: 'angularStyle',
       label: 'Styles.css',
       icon: 'style',
@@ -479,7 +489,7 @@ export class EditorDialogComponent implements OnInit {
     const moduleName = this.data.pascalCaseModuleName;
     const humanName = this.data.humanModuleName;
 
-    const schema: DatabaseTable = await sqlCreateTableToAST(this.data.sqlInput);
+    const schema: DatabaseTable = await sqlCreateTableToAST(this.data.sqlInput, dialet);
 
     this.jpaPK.set(await buildEntityJPAPrimaryKey(moduleName, schema, dialet));
     this.jpaEntity.set(await buildEntityJPAFromDdl(moduleName, schema, dialet));
@@ -499,6 +509,7 @@ export class EditorDialogComponent implements OnInit {
     this.angularDataTableHTML.set(await buildAngularDataTableHTMLFromDdl(moduleName, humanName, schema, dialet));
     this.angularDataTableSCSS.set(await buildAngularDataTableSCSSFromDdl());
     this.angularForm.set(await buildAngularFormFromDdl(moduleName, humanName, schema, dialet));
+    this.angularFormHTML.set(await buildAngularFormHTMLFromDdl(moduleName, humanName, schema, dialet));
 
   }
 

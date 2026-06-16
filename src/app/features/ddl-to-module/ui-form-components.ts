@@ -91,3 +91,69 @@ export function autoComplete(label: string, fieldName: string, fieldNamePascal: 
           </div>
 `;
 }
+
+export function inputDate(label: string, fieldName: string, lenChars: number) {
+      return `
+          <!-- ${label} -->
+          <div class="fx-col-2">
+            <mat-form-field appearance="outline">
+              <mat-label>${label}</mat-label>
+              <input matInput type="date" formControlName="${fieldName}" maxlength="${lenChars}" />
+              @if (form.controls.${fieldName}.invalid) {
+              <mat-error>Campo obrigatório.</mat-error>
+              }
+            </mat-form-field>
+          </div>
+`;
+}
+
+export function inputDateTime(label: string, fieldName: string, lenChars: number) {
+      return `
+          <!-- ${label} -->
+          <div class="fx-col-2">
+            <mat-form-field appearance="outline">
+              <mat-label>${label}</mat-label>
+              <input matInput type="datetime-local" formControlName="${fieldName}" maxlength="${lenChars}" />
+              @if (form.controls.${fieldName}.invalid) {
+              <mat-error>Campo obrigatório.</mat-error>
+              }
+            </mat-form-field>
+          </div>
+`;
+}
+
+export function maskedAsCurrency(label: string, fieldName: string, lenChars: number) {
+  const separator = '9'.repeat(lenChars - 3);
+      return `
+          <!-- ${label} -->
+          <div class="fx-col-2">
+            <mat-form-field appearance="outline">
+              <mat-label>${label}</mat-label>
+              <input type="text" matInput formControlName="${fieldName}" mask="separator.2" prefix="R$ "
+                thousandSeparator="." decimalMarker="," [leadZero]="true" [allowNegativeNumbers]="false"
+                separatorLimit="${separator}" [dropSpecialCharacters]="true" />
+              @if (form.controls.${fieldName}.invalid) {
+              <mat-error>Campo obrigatório.</mat-error>
+              }
+            </mat-form-field>
+          </div>
+`;
+}
+
+export function maskedAsFloat(label: string, fieldName: string, len: number, scale: number) {
+  const separator = '9'.repeat(len - scale - 1);
+      return `
+          <!-- ${label} -->
+          <div class="fx-col-2">
+            <mat-form-field appearance="outline">
+              <mat-label>${label}</mat-label>
+              <input type="text" matInput formControlName="${fieldName}" mask="separator.${scale}"
+                thousandSeparator="" decimalMarker="," [leadZero]="true" [allowNegativeNumbers]="true"
+                separatorLimit="${separator}" [dropSpecialCharacters]="true" />
+              @if (form.controls.${fieldName}.invalid) {
+              <mat-error>Campo obrigatório.</mat-error>
+              }
+            </mat-form-field>
+          </div>
+`;
+}

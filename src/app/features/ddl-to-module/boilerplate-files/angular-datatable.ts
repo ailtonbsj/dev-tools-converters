@@ -1,12 +1,12 @@
-import { DatabaseTable } from "../database-table.model";
-import { columnToFieldJava, Dialect, pascalToKebabCase } from "../module-buillders";
+import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
+import { pascalToKebabCase } from "../module-buillders";
 
 export async function buildAngularDataTableFromDdl(moduleName: string, humanName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
   const moduleNameKebab = pascalToKebabCase(moduleName);
   const columns = schema.columns;
 
   const columnsMenuDeclaration = columns.map(c => {
-    return `{ id: '${columnToFieldJava(c.column)}', label: '${c.label}', enabled: true },`;
+    return `{ id: '${c.javaFieldName}', label: '${c.label}', enabled: true },`;
   });
 
   const datatableTemplate = `
@@ -17,7 +17,7 @@ import { MaterialModule } from 'src/app/shared/material.module';
 import { Page } from 'src/app/shared/models/page.model';
 import { PageEvent } from '@angular/material/paginator';
 import { PageControl } from 'src/app/shared/models/page-control.model';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Observable } from 'rxjs';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { SpinnerTextService } from 'src/app/shared/services/spinner-text.service';
 import { MatSort, Sort } from '@angular/material/sort';
@@ -25,14 +25,17 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { SortIconComponent } from 'src/app/components/sort-icon/sort-icon.component';
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { MatSelectionList } from '@angular/material/list';
+import { ConfirmDialogComponent } from 'src/app/shared/components/confirm-dialog/confirm-dialog.component';
+import { ConfirmDialogData } from 'src/app/shared/components/confirm-dialog/confirm-dialog-data.model';
+import { MatDialog } from '@angular/material/dialog';
 import { ${moduleName} } from '../${moduleNameKebab}.model';
 import { ${moduleName}Service } from '../${moduleNameKebab}.service';
 
 @Component({
   selector: 'app-${moduleNameKebab}-datatable',
   imports: [CommonModule, RouterModule, ReactiveFormsModule, MaterialModule, SortIconComponent, DatePipe, CurrencyPipe],
-  templateUrl: '${moduleNameKebab}-datatable.html',
-  styleUrl: '${moduleNameKebab}-datatable.scss'
+  templateUrl: '${moduleNameKebab}-datatable.component.html',
+  styleUrl: '${moduleNameKebab}-datatable.component.scss'
 })
 export class ${moduleName}DataTableComponent implements AfterViewInit {
 
@@ -41,10 +44,11 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
   private route = inject(ActivatedRoute);
   private spinnerText = inject(SpinnerTextService);
   private alert = inject(AlertService);
+  private dialog = inject(MatDialog);
   private service = inject(${moduleName}Service);
 
   form = this.fb.group({
-    ${columns.map(c => columnToFieldJava(c.column) + ': [\'\'],').join('\n    ')}
+    ${columns.map(c => c.javaFieldName + ': [\'\'],').join('\n    ')}
   });
 
   isFirstSearch = true;
@@ -111,11 +115,20 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
       this.pageCtl.pageNumber = 0;
       this.entity = <${moduleName}>{
         ...this.form.value as any,
+        ...this.normalizeControlsFloat(${columns.filter(c => ['BigDecimal', 'Double', 'Float'].includes(c.javaType)).map(c => `'${c.javaFieldName}'`).join(', ')})
       };
       this.isFirstSearch = false;
       this.enableSearch = true;
       this.search();
     }
+  }
+
+  normalizeControlsFloat(...controls: string[]) {
+    return Object.fromEntries(
+      Object.entries(this.form.controls)
+      .filter(c => controls.includes(c[0]) && c[1].value != '' && c[1] != null)
+      .map(c => [c[0], c[1].value?.replace(/R|\\$|\\./g, '').replace(',', '.') ?? ''])
+    );
   }
 
   trimFields() {
@@ -157,10 +170,20 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
 
   clearForm() {
     this.form.reset({
-      ${columns.map(c => columnToFieldJava(c.column) + ': \'\',').join('\n      ')}
+      ${columns.map(c => c.javaFieldName + ': \'\',').join('\n      ')}
     });
     this.enableSearch = false;
     this.isFirstSearch = true;
+  }
+
+  alertSuccess(message: string) {
+    this.alert.show({
+      title: 'Salvo',
+      message,
+      iconClass: 'fa-solid fa-floppy-disk',
+      type: 'success',
+      timeout: 15000,
+    });
   }
 
   alertWarn(e: any) {
@@ -173,8 +196,42 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
     });
   }
 
+  showFormReadOnly(id: string) {
+    this.router.navigate([\`./\${id}\`], { relativeTo: this.route });
+  }
+
   showForm(id: string) {
     this.router.navigate([\`./\${id}/edicao\`], { relativeTo: this.route });
+  }
+
+  confirmDelete(): Observable<boolean> {
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      width: '500px',
+      data: {
+        title: 'Confirmação de exclusão',
+        messages: ['Esta ação não poderá ser desfeita.', 'Deseja realmente excluir esse registro?'],
+        okLabel: 'Excluir',
+        okIcon: 'delete',
+        okColor: 'warn'
+      } as ConfirmDialogData,
+    });
+    return dialogRef.afterClosed();
+  }
+
+  async confirmRemove(id: number) {
+    try {
+      if(await firstValueFrom(this.confirmDelete())) {
+        await firstValueFrom(this.service.destroy(id));
+        this.alertSuccess(\`${humanName} com ID \${id} excluído com sucesso!\`);
+        this.search();
+      }
+    } catch (e: unknown) {
+      if (e instanceof HttpErrorResponse) {
+        if (e.status === HttpStatusCode.BadRequest) {
+          this.alertWarn(e.error.message);
+        } else console.log(e);
+      } else console.log(e);
+    }
   }
 
 }

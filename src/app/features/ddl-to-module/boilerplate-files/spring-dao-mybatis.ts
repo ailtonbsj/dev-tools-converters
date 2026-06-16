@@ -1,5 +1,7 @@
-import { DatabaseTable } from "../database-table.model";
-import { columnToFieldJava, columnToPascalFieldJava, columnToTypeJava, Dialect, snakeToCamelCase } from "../module-buillders";
+import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
+import { columnToPascalFieldJava } from "../module-buillders";
+import { columnToFieldJava, columnToTypeJava } from "../sql-datastructs/datastructs";
+import { snakeToCamelCase } from "../case-util";
 
 export async function buildMyBatisDAOFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
   const entityNameCamel = snakeToCamelCase(schema.table.replace('tb_', ''));

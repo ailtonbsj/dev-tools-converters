@@ -1,13 +1,13 @@
-import { DatabaseTable } from "../database-table.model";
-import { columnToFieldJava, columnToTypeJava, Dialect, snakeToPascalCase } from "../module-buillders";
+import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
+import { columnToTypeJava } from "../sql-datastructs/datastructs";
 
 export async function buildSpringDTOFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
-  const entityName = snakeToPascalCase(schema.table.replace('tb_', ''));
   const columns = schema.columns;
+  const primaries = columns.filter(col => col.isPrimary);
 
   const properties = columns.map(col => {
     const type = columnToTypeJava(col, dialect);
-    const field = columnToFieldJava(col.column);
+    const field = col.javaFieldName;
     const label = col.label != null && col.label !== '' ? col.label : field;
     const pkValid = col.isPrimary ? `@Null(message = "O campo ${label} precisa está vazio.")\n  ` : '';
     const notBlankOrNull = ['String'].includes(type) ?
@@ -17,11 +17,13 @@ export async function buildSpringDTOFromDdl(moduleName: string, schema: Database
       `@Size(max = ${col.len}, message = "O campo ${label} aceita no máximo ${col.len} caracteres.")\n  ` : '';
     const scaleMessage = col.scale > 0 ? ` e ${col.scale} decimais.` : '.';
     const digitValid = col.len > 0 && ['Integer', 'Long', 'BigDecimal', 'Double'].includes(type) && pkValid === '' ?
-      `@Digits(integer = ${col.len}, fraction = ${col.scale}, message = "O campo ${label} só permite ${col.len} dígitos inteiros${scaleMessage}")\n  ` : '';
+      `@Digits(integer = ${col.len - col.scale - 1}, fraction = ${col.scale}, message = "O campo ${label} só permite ${col.len - col.scale - 1} dígitos inteiros${scaleMessage}")\n  ` : '';
     const labelComment = col.label != null && col.label !== '' ? `/* ${col.label} */\n  ` : '';
 
     return `${labelComment}${pkValid}${notNullValid}${sizeValid}${digitValid}private ${type} ${field};`;
   });
+
+  if(primaries.length > 1) properties.unshift('private String id;');
 
 
   return `

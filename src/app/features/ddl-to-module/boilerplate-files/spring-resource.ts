@@ -1,6 +1,7 @@
 import { plural } from "@umatch/pluralize-ptbr";
-import { DatabaseTable } from "../database-table.model";
-import { columnToFieldJava, columnToTypeJava, Dialect, pascalToKebabCase, pascalToSnakeCase } from "../module-buillders";
+import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
+import { pascalToKebabCase, pascalToSnakeCase } from "../module-buillders";
+import { columnToFieldJava, columnToTypeJava } from "../sql-datastructs/datastructs";
 
 export async function buildResourceFromDdl(moduleName: string, humanName: string, schema: DatabaseTable, dialect: Dialect) {
   const pluralKebabName = plural(pascalToKebabCase(moduleName));

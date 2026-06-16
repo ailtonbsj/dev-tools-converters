@@ -1,5 +1,6 @@
-import { DatabaseTable } from "../database-table.model";
-import { columnToFieldJava, columnToPascalFieldJava, columnToTypeJava, Dialect } from "../module-buillders";
+import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
+import { columnToPascalFieldJava } from "../module-buillders";
+import { columnToTypeJava } from "../sql-datastructs/datastructs";
 
 export async function buildImplementationJPAFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect) {
   const columns = schema.columns;
@@ -7,8 +8,6 @@ export async function buildImplementationJPAFromDdl(moduleName: string, schema: 
 
   const pkType = columnToTypeJava(primaries[0], dialect);
   const typeDeclaration = primaries.length > 1 ? `${moduleName}PK` : pkType;
-
-  const pkId = columnToFieldJava(primaries[0].column);
 
   const setIdCompound = primaries.map(p => `domain.set${columnToPascalFieldJava(p.column)}(id.get${columnToPascalFieldJava(p.column)}());`);
   const setIdDeclaration = primaries.length > 1 ? setIdCompound.join('\n            ') : 'domain.setId(id);';

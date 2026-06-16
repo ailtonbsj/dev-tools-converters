@@ -1,5 +1,5 @@
-import { DatabaseTable } from "../database-table.model";
-import { columnToFieldJava, columnToTypeJava, Dialect } from "../module-buillders";
+import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
+import { columnToTypeJava } from "../sql-datastructs/datastructs";
 
 export async function buildServiceFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
   const columns = schema.columns;
@@ -8,7 +8,7 @@ export async function buildServiceFromDdl(moduleName: string, schema: DatabaseTa
   const pkType = columnToTypeJava(primaries[0], dialect);
   const typeDeclaration = primaries.length > 1 ? `${moduleName}PK` : pkType;
 
-  const pkId = columnToFieldJava(primaries[0].column);
+  const pkId = primaries[0].javaFieldName;
 
   return `
 import org.springframework.data.domain.*;

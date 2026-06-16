@@ -1,5 +1,5 @@
-import { DatabaseTable } from "../database-table.model";
-import { columnToTypeJava, Dialect } from "../module-buillders";
+import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
+import { columnToTypeJava } from "../sql-datastructs/datastructs";
 
 export async function buildRepositoryJPAFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
   const columns = schema.columns;

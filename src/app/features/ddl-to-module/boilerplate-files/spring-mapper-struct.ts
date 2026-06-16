@@ -1,4 +1,4 @@
-import { DatabaseTable } from "../database-table.model";
+import { DatabaseTable } from "../sql-datastructs/database.model";
 import { columnToPascalFieldJava } from "../module-buillders";
 
 export async function buildMapperFromDdl(moduleName: string, schema: DatabaseTable, ddl: string): Promise<string> {

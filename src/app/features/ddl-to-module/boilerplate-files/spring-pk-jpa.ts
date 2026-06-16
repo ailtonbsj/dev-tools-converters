@@ -1,11 +1,11 @@
-import { DatabaseTable } from "../database-table.model";
-import { columnToFieldJava, columnToTypeJava, Dialect } from "../module-buillders";
+import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
+import { columnToTypeJava } from "../sql-datastructs/datastructs";
 
 export async function buildEntityJPAPrimaryKey(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
   const columns = schema.columns;
   const primaries = columns.filter(col => col.isPrimary);
 
-  const fieldsDeclarations = primaries.map(p => `private ${columnToTypeJava(p, dialect)} ${columnToFieldJava(p.column)};`);
+  const fieldsDeclarations = primaries.map(p => `private ${columnToTypeJava(p, dialect)} ${p.javaFieldName};`);
 
   return `
 import lombok.*;

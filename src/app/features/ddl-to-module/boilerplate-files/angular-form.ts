@@ -1,30 +1,11 @@
-import { DatabaseTable } from "../database-table.model";
-import { columnToFieldJava, columnToPascalFieldJava, columnToTypeJava, columnToTypeTypeScript, Dialect, pascalToKebabCase } from "../module-buillders";
-import { autoComplete, inputText, maskedAsNumber, staticSelect } from "../ui-form-components";
+import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
+import { columnToPascalFieldJava, columnToTypeTypeScript, pascalToKebabCase } from "../module-buillders";
+import { columnToFieldJava } from "../sql-datastructs/datastructs";
 
 export async function buildAngularFormFromDdl(moduleName: string, humanName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
   const moduleNameKebab = pascalToKebabCase(moduleName);
   const columns = schema.columns;
-
-  const formFields = columns.map(field => {
-    const javaType = columnToTypeJava(field, dialect);
-    const fieldName = columnToFieldJava(field.column);
-    const fieldNamePascal = columnToPascalFieldJava(field.column);
-    const ui = field.uiComponent;
-
-    if(ui != null) {
-      if(ui === 'maskedAsNumber')
-        return maskedAsNumber(field.label, fieldName, field.lenChars);
-      else if(ui === 'staticSelect')
-        return staticSelect(field.label, fieldName, field.allowValues);
-      else if(ui === 'autoComplete')
-        return autoComplete(field.label, fieldName, fieldNamePascal);
-    } else {
-      if(['Integer', 'Long'].includes(javaType))
-        return maskedAsNumber(field.label, fieldName, field.lenChars);
-    }
-    return inputText(field.label, fieldName, field.lenChars);
-  });
+  const primaries = columns.filter(col => col.isPrimary);
 
   const declareFormFields = columns.map(field => {
     const fieldName = columnToFieldJava(field.column);
@@ -35,6 +16,9 @@ export async function buildAngularFormFromDdl(moduleName: string, humanName: str
     } else
       return `${fieldName}: this.fb.control<${fieldType}>(''${ fieldType != 'string' ? ' as any' : '' }${field.isNullable ? '' : ', Validators.required'}),`;
   });
+
+  const disableFields = primaries.map(p => `'${p.javaFieldName}'`).join(', ');
+  const disableFieldsDeclaration = `\n    [${disableFields}].map(f => this.form.get(f)?.disable());`;
 
   const snippetsAutoComplete = columns.filter(col => col.uiComponent === 'autoComplete').map(field => {
     const fieldName = columnToFieldJava(field.column);
@@ -106,49 +90,12 @@ import { ${moduleName}Service } from '../${moduleNameKebab}.service';
 import { firstValueFrom } from 'rxjs';
 import { ${moduleName} } from '../${moduleNameKebab}.model';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
+import { NgxMaskDirective } from 'ngx-mask';
 
 @Component({
   selector: 'app-${moduleNameKebab}-form',
-  imports: [FormsModule, ReactiveFormsModule, MaterialModule],
-  template: \`
-<div class="container-fluid py-3">
-  <div class="card">
-    <div class="card-header bg-primary">
-      <h1>${humanName} - {{ modeLabel }}</h1>
-    </div>
-    <div class="card-body">
-      <div class="d-flex justify-content-between align-items-center pb-3">
-        <div class="alert alert-warning m-0 px-3 py-1" role="alert">
-          <i class="fa-solid fa-triangle-exclamation"></i>&nbsp;Os campos com * são de preenchimento obrigatórios.
-        </div>
-        <button class="ms-2" type="button" mat-raised-button (click)="navigateBack()">
-          <i class="fa-solid fa-reply-all"></i>
-          Voltar
-        </button>
-      </div>
-      <form [formGroup]="form" (submit)="onSubmit()">
-        <div class="card">
-          <div class="card-header">Formulário</div>
-          <div class="card-body">
-            <div class="fx-grid">
-
-              ${formFields.join('\n')}
-
-            </div>
-
-            <div class="d-flex">
-              <button type="submit" mat-raised-button color="primary" class="ms-auto">
-                <i class="fa-solid fa-floppy-disk"></i> {{ isViewNew ? "Salvar" : "Atualizar" }}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-  \`,
+  imports: [FormsModule, ReactiveFormsModule, MaterialModule, NgxMaskDirective],
+  templateUrl: '${moduleNameKebab}-form.component.html',
   styleUrl: './${moduleNameKebab}-form.component.scss',
 })
 export class ${moduleName}FormComponent implements OnInit {
@@ -164,7 +111,7 @@ export class ${moduleName}FormComponent implements OnInit {
   readonly isViewEdit = this.route.snapshot.url.at(-1)?.path === 'edicao';
   readonly isViewRead = !this.isViewNew && !this.isViewEdit;
 
-  readonly entityId = this.route.snapshot.params.id;
+  readonly entityId = this.route.snapshot.params.id ?? '';
   readonly modeLabel = this.isViewNew ? 'Novo' : this.isViewEdit ? 'Edição' : 'Somente Visualização';
 
   fallback = '/app/${moduleNameKebab}/';
@@ -190,13 +137,16 @@ export class ${moduleName}FormComponent implements OnInit {
     const nullEntity = Object.fromEntries(
       Object.entries(entity).filter(kv => kv[1] === null).map(kv => [kv[0], ''])
     );
-    this.form.patchValue({ ...entity, ...nullEntity });
+    this.form.patchValue({ ...entity, ...nullEntity });${disableFieldsDeclaration}
   }
 
   async onSubmit() {
     this.trimFields();
     if (this.form.valid) {
-      const entity = { ...this.form.value } as ${moduleName};
+      const entity = {
+        ...this.form.getRawValue(),
+        ...this.normalizeControlsDate(${columns.filter(c => c.javaType === 'LocalDate').map(c => `'${c.javaFieldName}'`).join(', ')})
+      } as ${moduleName};
       try {
         if (this.isViewNew) {
           const res = await firstValueFrom(this.service.create(entity));
@@ -223,6 +173,14 @@ export class ${moduleName}FormComponent implements OnInit {
       .map(f => this.form.get(f))
       .filter(f => typeof f?.value === 'string')
       .map(f => f?.setValue(f?.value.trim()));
+  }
+
+  normalizeControlsDate(...controls: string[]) {
+    return Object.fromEntries(
+      Object.entries(this.form.controls)
+      .filter(c => controls.includes(c[0]) && c[1].value != '' && c[1] != null)
+      .map(c => [c[0], \`\${c[1].value}T00:00:00\`])
+    );
   }
 
   alertSuccess(message: string) {

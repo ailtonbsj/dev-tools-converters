@@ -1,11 +1,11 @@
 import { plural } from "@umatch/pluralize-ptbr";
-import { DatabaseTable } from "../database-table.model";
-import { columnToFieldJava, columnToTypeTypeScript, Dialect, pascalToKebabCase } from "../module-buillders";
+import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
+import { columnToTypeTypeScript, pascalToKebabCase } from "../module-buillders";
 
 export async function buildAngularServiceFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
   const pluralKebabName = plural(pascalToKebabCase(moduleName));
   const columns = schema.columns;
-  const properties = columns.map(col => `${columnToFieldJava(col.column)}: ${columnToTypeTypeScript(col, dialect)}`);
+  const properties = columns.map(col => `${col.javaFieldName}: ${columnToTypeTypeScript(col, dialect)}`);
 
   return `
 import { HttpClient, HttpParams } from "@angular/common/http";

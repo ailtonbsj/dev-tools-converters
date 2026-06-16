@@ -1,12 +1,12 @@
-import { DatabaseTable } from "../database-table.model";
-import { columnToFieldJava, columnToTypeJava, Dialect } from "../module-buillders";
+import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
 import { inputDate, inputDateTime, inputText, maskedAsCurrency, staticSelect } from "../ui-table-colunms";
+import { columnToTypeJava } from "../sql-datastructs/datastructs";
 
 export async function buildAngularDataTableHTMLFromDdl(moduleName: string, humanName: string, schema: DatabaseTable, dialect: Dialect) {
   const columns = schema.columns;
 
   const formFields = columns.map(field => {
-    const fieldName = columnToFieldJava(field.column);
+    const fieldName = field.javaFieldName;
     const length = field.len ?? 100;
       return `
           <!-- ${field.label} -->
@@ -22,7 +22,7 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
   });
 
   const tableColumns = columns.map(column => {
-    const colName = columnToFieldJava(column.column);
+    const colName = column.javaFieldName;
     const ui = column.uiComponent;
     const javaType = columnToTypeJava(column, dialect);
     //const fieldNamePascal = columnToPascalFieldJava(field.column);
@@ -72,7 +72,7 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
           <button type="button" mat-raised-button (click)="clearForm()" [disabled]="isLoading">
             <i class="fa-solid fa-eraser"></i> Limpar
           </button>
-          <a routerLink="./novo" class="ms-auto" [hidden]="true">
+          <a routerLink="./novo" class="ms-auto" [hidden]="false">
             <button type="button" color="primary" mat-raised-button>
               <i class="fa-solid fa-plus"></i>
               Novo
@@ -117,8 +117,14 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
               Ações
             </th>
             <td mat-cell *matCellDef="let el" class="text-center align-middle fs-6 w2-actions">
-              <button type="button" mat-icon-button color="primary" matTooltip="Visualizar" (click)="showForm(el.id)">
+              <button type="button" mat-icon-button color="primary" matTooltip="Visualizar" (click)="showFormReadOnly(el.id)" [hidden]="true">
                 <mat-icon>visibility</mat-icon>
+              </button>
+              <button type="button" mat-icon-button color="primary" matTooltip="Editar" (click)="showForm(el.id)" [hidden]="false">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button type="button" mat-icon-button color="warn" matTooltip="Remover" (click)="confirmRemove(el.id)" [hidden]="false">
+                <mat-icon>delete</mat-icon>
               </button>
             </td>
           </ng-container>

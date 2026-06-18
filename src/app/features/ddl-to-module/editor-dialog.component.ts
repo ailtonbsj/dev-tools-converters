@@ -25,6 +25,7 @@ import { stylesCss } from './boilerplate-files/anuglar-styles';
 import { buildEntityMyBatisFromDdl } from './boilerplate-files/spring-entity-mybatis';
 import { buildTestImplJPAFromDdl } from './boilerplate-files/spring-test-impl-jpa';
 import { buildTestResourceFromDdl } from './boilerplate-files/spring-test-resource';
+import { buildAngularRoutesFromDdl } from './boilerplate-files/angular-routes';
 
 export type EditorDialogData = {
   dialect: 'postgresql' | 'oracle';
@@ -74,6 +75,7 @@ export class EditorDialogComponent implements OnInit {
   angularDataTableSCSS = signal('');
   angularForm = signal('');
   angularFormHTML = signal('');
+  angularRoutes = signal('');
 
   protected readonly tabs = computed<EditorTab[]>(() => [
     {
@@ -217,6 +219,13 @@ export class EditorDialogComponent implements OnInit {
       code: this.angularFormHTML()
     },
     {
+      id: 'angularRoutes',
+      label: 'Routes Angular.ts',
+      icon: 'code',
+      language: 'typescript',
+      code: this.angularRoutes()
+    },
+    {
       id: 'angularStyle',
       label: 'Styles.css',
       icon: 'style',
@@ -255,7 +264,7 @@ export class EditorDialogComponent implements OnInit {
     this.jpaPK.set(await buildEntityJPAPrimaryKey(moduleName, schema, dialet));
     this.jpaEntity.set(await buildEntityJPAFromDdl(moduleName, schema, dialet));
     this.jpaRepository.set(await buildRepositoryJPAFromDdl(moduleName, schema, dialet));
-    this.myBatisEntity.set(await buildEntityMyBatisFromDdl(schema, dialet));
+    this.myBatisEntity.set(await buildEntityMyBatisFromDdl(moduleName, schema, dialet));
     this.myBatisDAO.set(await buildMyBatisDAOFromDdl(moduleName, schema, dialet));
     this.springDTO.set(await buildSpringDTOFromDdl(moduleName, schema, dialet));
     this.mapperStruct.set(await buildMapperFromDdl(moduleName, schema, sqlInput));
@@ -271,6 +280,7 @@ export class EditorDialogComponent implements OnInit {
     this.angularDataTableSCSS.set(await buildAngularDataTableSCSSFromDdl());
     this.angularForm.set(await buildAngularFormFromDdl(moduleName, humanName, schema, dialet));
     this.angularFormHTML.set(await buildAngularFormHTMLFromDdl(moduleName, humanName, schema, dialet));
+    this.angularRoutes.set(await buildAngularRoutesFromDdl(moduleName));
 
   }
 

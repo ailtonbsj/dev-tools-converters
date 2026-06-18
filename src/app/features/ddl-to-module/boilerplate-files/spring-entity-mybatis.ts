@@ -1,7 +1,7 @@
 import { snakeToCamelCase, snakeToPascalCase } from "../case-util";
 import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
 
-export async function buildEntityMyBatisFromDdl(schema: DatabaseTable, dialect: Dialect): Promise<string> {
+export async function buildEntityMyBatisFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
 
   const entityName = snakeToPascalCase(schema.table.replace('tb_', ''));
   let entity = `
@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
-public class ${entityName} implements Serializable {\n\n`;
+public class ${moduleName} implements Serializable {\n\n`;
 
   for(const col of schema.columns) {
     const unique = col.isUnique ? `, unique = true` : '';

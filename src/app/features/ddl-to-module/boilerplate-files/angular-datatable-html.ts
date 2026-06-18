@@ -94,10 +94,10 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
         </button>
       </div>
       <mat-menu #menu${moduleName}="matMenu">
-        <mat-selection-list #columnList>
-          @for (column of columns; track column.id) {
+        <mat-selection-list #columnList${moduleName}>
+          @for (column of columns${moduleName}; track column.id) {
             <mat-list-option [selected]="column.enabled" [value]="column.id"
-              (click)="onColumnMenuClick(columnList); $event.stopPropagation()">
+              (click)="onColumn${moduleName}MenuClick(columnList${moduleName}); $event.stopPropagation()">
               {{ column.label }}
             </mat-list-option>
           }
@@ -106,7 +106,7 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
     </div>
     <div class="card-body">
       <div class="datatable-panel">
-        <table mat-table [dataSource]="datasource${moduleName}" matSort multiTemplateDataRows
+        <table mat-table [dataSource]="datasource${moduleName}" matSort #sort${moduleName}="matSort" multiTemplateDataRows
           class="table table-striped table-hover table-bordered table-condensed table-border-brown">
           ${tableColumns.join('\n')}
 

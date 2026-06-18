@@ -30,6 +30,7 @@ import { ConfirmDialogComponent } from 'src/app/shared/components/confirm-dialog
 import { ConfirmDialogData } from 'src/app/shared/components/confirm-dialog/confirm-dialog-data.model';
 import { MatDialog } from '@angular/material/dialog';
 import { ViewState } from 'src/app/shared/models/dialog-data.model';
+import { SecurityService } from 'src/app/shared/services/security.service';
 import { ${moduleName} } from '../${moduleNameKebab}.model';
 import { ${moduleName}Service } from '../${moduleNameKebab}.service';
 import { ${moduleName}FormComponent } from '../${moduleNameKebab}-form/${moduleNameKebab}-form.component';
@@ -49,6 +50,7 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
   private spinnerText = inject(SpinnerTextService);
   private alert = inject(AlertService);
   private dialog = inject(MatDialog);
+  private securityService = inject(SecurityService);
   private ${moduleNameCamel}Service = inject(${moduleName}Service);
 
   form${moduleName} = this.fb.group({
@@ -65,7 +67,7 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
     ${columnsMenuDeclaration.join('\n    ')}
   ];
   displayed${moduleName}Columns: string[] = [
-    ...this.columns.filter(c => c.enabled).map(c => c.id), 'actions'
+    ...this.columns${moduleName}.filter(c => c.enabled).map(c => c.id), 'actions'
   ];
 
   readonly dataNotFound = 'Não informado!';
@@ -79,17 +81,17 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
     sortProps: '',
   };
 
-  @ViewChild(MatSort) sortViewChild${moduleName}: MatSort = <MatSort>{};
+  @ViewChild('sort${moduleName}') sortViewChild${moduleName}: MatSort = <MatSort>{};
   sorts${moduleName} = signal<{ active: string, direction: string }[]>([]);
 
   ngAfterViewInit(): void {
     init${humanName}Datatable()
   }
 
-  onColumnMenuClick(list: MatSelectionList) {
+  onColumn${moduleName}MenuClick(list: MatSelectionList) {
     const selected = list.selectedOptions.selected.map(i => i.value);
-    this.displayedColumns = this.columns.filter(c => selected.includes(c.id)).map(c => c.id);
-    this.displayedColumns.push('actions');
+    this.displayed${moduleName}Columns = this.columns${moduleName}.filter(c => selected.includes(c.id)).map(c => c.id);
+    this.displayed${moduleName}Columns.push('actions');
   }
 
   onSubmit() {
@@ -129,8 +131,8 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
     try {
       const page = await firstValueFrom(this.${moduleNameCamel}Service.filter(this.entity${moduleName}, this.page${moduleName}Ctl));
       this.display${moduleName}Footer = page.content?.length !== 0 ? [] : ['footer'];
-      this.${moduleName}Page = page;
-      this.datasource${moduleName} = new MatTableDataSource(this.entityPage.content);
+      this.${moduleNameCamel}Page = page;
+      this.datasource${moduleName} = new MatTableDataSource(this.${moduleNameCamel}Page.content);
     } catch (e: unknown) {
       if (e instanceof HttpErrorResponse) {
         if (e.status === HttpStatusCode.NotFound) {
@@ -235,29 +237,33 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
     }
   }
 
-  async init${humanName}Datatable() {
-    this.sortViewChild${humanName}.sortChange.subscribe({
+  async init${moduleName}Datatable() {
+    this.sortViewChild${moduleName}.sortChange.subscribe({
       next: (sort: Sort) => {
-        const item = this.sorts${humanName}().find(o => o.active === sort.active);
+        const item = this.sorts${moduleName}().find(o => o.active === sort.active);
         if (item) {
           if (sort.direction !== '') item.direction = sort.direction;
-          else this.sorts${humanName}.set(this.sorts().filter(o => o.active != item.active));
+          else this.sorts${moduleName}.set(this.sorts().filter(o => o.active != item.active));
         } else {
           if (sort.direction !== '') {
-            const sortsArr = this.sorts${humanName}();
+            const sortsArr = this.sorts${moduleName}();
             sortsArr.push(sort);
-            this.sorts${humanName}.set(sortsArr);
+            this.sorts${moduleName}.set(sortsArr);
           }
         }
-        const sortProps = this.sorts${humanName}().map(o => o.active).join(',');
-        const directions = this.sorts${humanName}().map(o => o.direction).join(',');
-        if (sortProps !== this.page${humanName}Ctl.sortProps || directions !== this.page${humanName}Ctl.directions) {
-          this.page${humanName}Ctl.sortProps = sortProps;
-          this.page${humanName}Ctl.directions = directions;
-          this.search${humanName}();
+        const sortProps = this.sorts${moduleName}().map(o => o.active).join(',');
+        const directions = this.sorts${moduleName}().map(o => o.direction).join(',');
+        if (sortProps !== this.page${moduleName}Ctl.sortProps || directions !== this.page${moduleName}Ctl.directions) {
+          this.page${moduleName}Ctl.sortProps = sortProps;
+          this.page${moduleName}Ctl.directions = directions;
+          this.search${moduleName}();
         }
       }
     });
+  }
+
+  hasRole(role: string) {
+    return this.securityService.hasRole(role);
   }
 
 }

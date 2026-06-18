@@ -1,5 +1,5 @@
 import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
-import { columnToTypeTypeScript } from "../module-buillders";
+import { columnToTypeTypeScript } from "../sql-datastructs/datastructs";
 
 export async function buildAngularModelFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
   const columns = schema.columns;

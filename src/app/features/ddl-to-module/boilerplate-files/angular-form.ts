@@ -1,6 +1,6 @@
 import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
-import { columnToPascalFieldJava, columnToTypeTypeScript, pascalToKebabCase } from "../module-buillders";
-import { columnToFieldJava } from "../sql-datastructs/datastructs";
+import { columnToFieldJava, columnToTypeTypeScript } from "../sql-datastructs/datastructs";
+import { camelToPascalCase, pascalToKebabCase } from "../case-util";
 
 export async function buildAngularFormFromDdl(moduleName: string, humanName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
   const moduleNameKebab = pascalToKebabCase(moduleName);
@@ -9,7 +9,7 @@ export async function buildAngularFormFromDdl(moduleName: string, humanName: str
 
   const declareFormFields = columns.map(field => {
     const fieldName = columnToFieldJava(field.column);
-    const fieldNamePascal = columnToPascalFieldJava(field.column);
+    const fieldNamePascal = camelToPascalCase(field.javaFieldName);
     const fieldType = columnToTypeTypeScript(field, dialect);
     if (field.uiComponent === 'autoComplete') {
       return `${fieldName}: this.fb.control({} as ${fieldNamePascal}${field.isNullable ? '' : ', [Validators.required, AutocompleteValidator.required()]'}),`;
@@ -22,7 +22,7 @@ export async function buildAngularFormFromDdl(moduleName: string, humanName: str
 
   const snippetsAutoComplete = columns.filter(col => col.uiComponent === 'autoComplete').map(field => {
     const fieldName = columnToFieldJava(field.column);
-    const fieldNamePascal = columnToPascalFieldJava(field.column);
+    const fieldNamePascal = camelToPascalCase(field.javaFieldName);
 
     return `
   /* ${fieldNamePascal} Autocomplete routines BEGIN */
@@ -86,11 +86,13 @@ import { Component, inject, OnInit } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MaterialModule } from 'src/app/shared/material.module';
-import { ${moduleName}Service } from '../${moduleNameKebab}.service';
 import { firstValueFrom } from 'rxjs';
-import { ${moduleName} } from '../${moduleNameKebab}.model';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { NgxMaskDirective } from 'ngx-mask';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { ${moduleName} } from '../${moduleNameKebab}.model';
+import { ${moduleName}Service } from '../${moduleNameKebab}.service';
+// import { ${moduleName}DialogData } from '../${moduleNameKebab}-form-data.model';
 
 @Component({
   selector: 'app-${moduleNameKebab}-form',
@@ -105,8 +107,12 @@ export class ${moduleName}FormComponent implements OnInit {
   private fb = inject(FormBuilder);
   private alert = inject(AlertService);
   private service = inject(${moduleName}Service);
+  // public dialogRef = inject(MatDialogRef<${moduleName}FormComponent>); Dialog Mode
+  // public data = inject<${moduleName}DialogData>(MAT_DIALOG_DATA); Dialog Mode
 
   // Initialize view state flags
+  // readonly isViewNew = this.data.viewState === 'novo'; Dialog Mode
+  // readonly isViewEdit = this.data.viewState === 'edicao'; Dialog Mode
   readonly isViewNew = this.route.snapshot.url.at(-1)?.path === 'novo';
   readonly isViewEdit = this.route.snapshot.url.at(-1)?.path === 'edicao';
   readonly isViewRead = !this.isViewNew && !this.isViewEdit;
@@ -124,12 +130,9 @@ export class ${moduleName}FormComponent implements OnInit {
     // Redirect if wrong entityId
     if ((this.isViewEdit || this.isViewRead) && (this.entityId == null || this.entityId === '')) this.router.navigate([this.fallback]);
     if (this.isViewNew) this.form.enable();
-    if (this.isViewEdit || this.isViewRead) this.loadForm();
+    // if(this.data.parentId) this.form.controls.parentId.setValue(this.data.parentId);
+    if (this.isViewEdit || this.isViewRead) await this.loadForm();
     if (this.isViewRead) this.form.disable();
-  }
-
-  navigateBack() {
-    this.router.navigate([this.fallback]);
   }
 
   async loadForm() {
@@ -137,7 +140,10 @@ export class ${moduleName}FormComponent implements OnInit {
     const nullEntity = Object.fromEntries(
       Object.entries(entity).filter(kv => kv[1] === null).map(kv => [kv[0], ''])
     );
-    this.form.patchValue({ ...entity, ...nullEntity });${disableFieldsDeclaration}
+    this.form.patchValue({
+      ...entity,
+      ...nullEntity
+    });${disableFieldsDeclaration}
   }
 
   async onSubmit() {
@@ -156,6 +162,7 @@ export class ${moduleName}FormComponent implements OnInit {
           this.alertSuccess(\`${humanName} com ID \${res.id} atualizada com sucesso!\`);
         }
         this.navigateBack();
+        // this.dialogRef.close(entity); Dialog Mode
       } catch (e: unknown) {
         if (e instanceof HttpErrorResponse) {
           if (e.status === HttpStatusCode.BadRequest) {
@@ -202,6 +209,11 @@ export class ${moduleName}FormComponent implements OnInit {
       timeout: 15000,
     });
   }
+
+  /* Dialog mode
+  onClose() {
+    this.dialogRef.close();
+  } */
 
 ${snippetsAutoComplete.join('')}
 

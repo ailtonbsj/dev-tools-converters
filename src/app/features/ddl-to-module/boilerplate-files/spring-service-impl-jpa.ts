@@ -1,5 +1,5 @@
+import { camelToPascalCase } from "../case-util";
 import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
-import { columnToPascalFieldJava } from "../module-buillders";
 import { columnToTypeJava } from "../sql-datastructs/datastructs";
 
 export async function buildImplementationJPAFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect) {
@@ -9,7 +9,7 @@ export async function buildImplementationJPAFromDdl(moduleName: string, schema: 
   const pkType = columnToTypeJava(primaries[0], dialect);
   const typeDeclaration = primaries.length > 1 ? `${moduleName}PK` : pkType;
 
-  const setIdCompound = primaries.map(p => `domain.set${columnToPascalFieldJava(p.column)}(id.get${columnToPascalFieldJava(p.column)}());`);
+  const setIdCompound = primaries.map(p => `domain.set${camelToPascalCase(p.javaFieldName)}(id.get${camelToPascalCase(p.javaFieldName)}());`);
   const setIdDeclaration = primaries.length > 1 ? setIdCompound.join('\n            ') : 'domain.setId(id);';
 
   return `
@@ -49,6 +49,10 @@ public class ${moduleName}ServiceImpl implements ${moduleName}Service {
         try {
             var domain = mapper.toDomain(dto);
             return mapper.toDto(repository.save(domain));
+        } catch(DataIntegrityViolationException e) {
+            // if(e.getCause().getMessage().contains("yor_foreign_key"))
+            log.warn("{}", e.getCause().getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Violação da integridade dos dados.");
         } catch (Exception e) {
             log.warn("{}", e.getCause().getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falha ao salvar.");
@@ -61,7 +65,11 @@ public class ${moduleName}ServiceImpl implements ${moduleName}Service {
             var domain = mapper.toDomain(dto);
             ${setIdDeclaration}
             return mapper.toDto(repository.save(domain));
-        }  catch (Exception e) {
+        } catch(DataIntegrityViolationException e) {
+            // if(e.getCause().getMessage().contains("yor_foreign_key"))
+            log.warn("{}", e.getCause().getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Violação da integridade dos dados.");
+        } catch (Exception e) {
             log.warn("{}", e.getCause().getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falha ao atualizar.");
         }
@@ -73,6 +81,10 @@ public class ${moduleName}ServiceImpl implements ${moduleName}Service {
             if(repository.findById(id).isEmpty()) return false;
             repository.deleteById(id);
             return true;
+        } catch(DataIntegrityViolationException e) {
+            // if(e.getCause().getMessage().contains("yor_foreign_key"))
+            log.warn("{}", e.getCause().getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Violação da integridade dos dados.");
         } catch (Exception e) {
             log.warn("{}", e.getCause().getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falha ao remover.");

@@ -1,8 +1,10 @@
 import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
 import { inputDate, inputDateTime, inputText, maskedAsCurrency, staticSelect } from "../ui-table-colunms";
 import { columnToTypeJava } from "../sql-datastructs/datastructs";
+import { pascalToCamelCase } from "../case-util";
 
 export async function buildAngularDataTableHTMLFromDdl(moduleName: string, humanName: string, schema: DatabaseTable, dialect: Dialect) {
+  const moduleNameCamel = pascalToCamelCase(moduleName);
   const columns = schema.columns;
 
   const formFields = columns.map(field => {
@@ -25,7 +27,6 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
     const colName = column.javaFieldName;
     const ui = column.uiComponent;
     const javaType = columnToTypeJava(column, dialect);
-    //const fieldNamePascal = columnToPascalFieldJava(field.column);
 
     if(ui != null) {
       if(ui === 'maskedAsNumber')
@@ -58,7 +59,7 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
       <h1>Consulta ${humanName}</h1>
     </div>
     <div class="card-body">
-      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <form [formGroup]="form${moduleName}" (ngSubmit)="onSubmit${moduleName}()">
 
         <div class="fx-grid">
           ${formFields.join('\n')}
@@ -66,18 +67,16 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
         </div>
 
         <div class="d-flex">
-          <button type="submit" mat-raised-button color="primary" class="me-2" [disabled]="isLoading">
+          <button type="submit" mat-raised-button color="primary" class="me-2" [disabled]="is${moduleName}Loading">
             <i class="fa-solid fa-magnifying-glass"></i> Consultar
           </button>
-          <button type="button" mat-raised-button (click)="clearForm()" [disabled]="isLoading">
+          <button type="button" mat-raised-button (click)="clearForm${moduleName}()" [disabled]="is${moduleName}Loading">
             <i class="fa-solid fa-eraser"></i> Limpar
           </button>
-          <a routerLink="./novo" class="ms-auto" [hidden]="false">
-            <button type="button" color="primary" mat-raised-button>
-              <i class="fa-solid fa-plus"></i>
-              Novo
-            </button>
-          </a>
+          <button type="button" color="primary" mat-raised-button (click)="showNew${moduleName}Form()">
+            <i class="fa-solid fa-plus"></i>
+            Novo
+          </button>
         </div>
 
       </form>
@@ -90,11 +89,11 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
     <div class="card-header d-flex align-items-center justify-content-between">
       <span>Resultado</span>
       <div>
-        <button type="button" mat-flat-button [matMenuTriggerFor]="menu">
+        <button type="button" mat-flat-button [matMenuTriggerFor]="menu${moduleName}">
           <i class="fa-solid fa-tasks"></i> Colunas
         </button>
       </div>
-      <mat-menu #menu="matMenu">
+      <mat-menu #menu${moduleName}="matMenu">
         <mat-selection-list #columnList>
           @for (column of columns; track column.id) {
             <mat-list-option [selected]="column.enabled" [value]="column.id"
@@ -107,7 +106,7 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
     </div>
     <div class="card-body">
       <div class="datatable-panel">
-        <table mat-table [dataSource]="datasource" matSort multiTemplateDataRows
+        <table mat-table [dataSource]="datasource${moduleName}" matSort multiTemplateDataRows
           class="table table-striped table-hover table-bordered table-condensed table-border-brown">
           ${tableColumns.join('\n')}
 
@@ -117,13 +116,13 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
               Ações
             </th>
             <td mat-cell *matCellDef="let el" class="text-center align-middle fs-6 w2-actions">
-              <button type="button" mat-icon-button color="primary" matTooltip="Visualizar" (click)="showFormReadOnly(el.id)" [hidden]="true">
+              <button type="button" mat-icon-button color="primary" matTooltip="Visualizar" (click)="showReadOnly${moduleName}Form(el.id)" [hidden]="true">
                 <mat-icon>visibility</mat-icon>
               </button>
-              <button type="button" mat-icon-button color="primary" matTooltip="Editar" (click)="showForm(el.id)" [hidden]="false">
+              <button type="button" mat-icon-button color="primary" matTooltip="Editar" (click)="showEdit${moduleName}Form(el.id)" [hidden]="false">
                 <mat-icon>edit</mat-icon>
               </button>
-              <button type="button" mat-icon-button color="warn" matTooltip="Remover" (click)="confirmRemove(el.id)" [hidden]="false">
+              <button type="button" mat-icon-button color="warn" matTooltip="Remover" (click)="confirmRemove${moduleName}(el.id)" [hidden]="false">
                 <mat-icon>delete</mat-icon>
               </button>
             </td>
@@ -131,14 +130,14 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
 
           <!-- Footer Column -->
           <ng-container matColumnDef="footer">
-            <td mat-footer-cell *matFooterCellDef [attr.colspan]="displayedColumns.length" class="bg-color-lightbrown">
+            <td mat-footer-cell *matFooterCellDef [attr.colspan]="displayed${moduleName}Columns.length" class="bg-color-lightbrown">
               <div class="container p-3">
                 <div class="row g-3 text-center">
                   <div class="col-12 fs-6">
-                    @if(isLoading) {
+                    @if(is${moduleName}Loading) {
                     <i class="fa-solid fa-spinner fa-spin-pulse"></i> Carregando ...
                     } @else {
-                    {{ isFirstSearch ? 'Faça uma consulta.' : 'Nenhum registro encontrado.' }}
+                    {{ isFirst${moduleName}Search ? 'Faça uma consulta.' : 'Nenhum registro encontrado.' }}
                     }
                   </div>
                 </div>
@@ -147,13 +146,13 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
           </ng-container>
 
           <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-          <tr mat-footer-row *matFooterRowDef="displayFooter" [hidden]="displayFooter.length === 0"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayed${moduleName}Columns"></tr>
+          <tr mat-footer-row *matFooterRowDef="display${moduleName}Footer" [hidden]="display${moduleName}Footer.length === 0"></tr>
         </table>
       </div>
 
-      <mat-paginator [length]="entityPage.totalElements" [pageSize]="entityPage.size" [pageIndex]="entityPage.number"
-        [showFirstLastButtons]="true" [pageSizeOptions]="[5, 10, 20, 50, 100]" (page)="onPageChange($event)"
+      <mat-paginator [length]="${moduleNameCamel}Page.totalElements" [pageSize]="${moduleNameCamel}Page.size" [pageIndex]="${moduleNameCamel}Page.number"
+        [showFirstLastButtons]="true" [pageSizeOptions]="[5, 10, 20, 50, 100]" (page)="on${moduleName}PageChange($event)"
         aria-label="Selecione a página" class="pagination-bottom-border">
       </mat-paginator>
 

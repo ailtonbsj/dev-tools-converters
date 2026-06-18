@@ -1,5 +1,5 @@
+import { camelToPascalCase } from "../case-util";
 import { DatabaseTable } from "../sql-datastructs/database.model";
-import { columnToPascalFieldJava } from "../module-buillders";
 
 export async function buildMapperFromDdl(moduleName: string, schema: DatabaseTable, ddl: string): Promise<string> {
   const columns = schema.columns;
@@ -7,7 +7,7 @@ export async function buildMapperFromDdl(moduleName: string, schema: DatabaseTab
 
   const mappingIdCompound = primaries.length > 1 ? `\n    @Mapping(target = "id", expression = "java(toId(domain))")` : '';
 
-  const getIdCompound = primaries.map(p => `model.get${columnToPascalFieldJava(p.column)}()`);
+  const getIdCompound = primaries.map(p => `model.get${camelToPascalCase(p.javaFieldName)}()`);
 
   const toIdMethod = primaries.length > 1 ? `
 

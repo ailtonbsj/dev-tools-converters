@@ -1,7 +1,7 @@
 import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
-import { columnToPascalFieldJava } from "../module-buillders";
 import { autoComplete, inputDate, inputDateTime, inputText, maskedAsCurrency, maskedAsFloat, maskedAsNumber, staticSelect } from "../ui-form-components";
 import { columnToTypeJava } from "../sql-datastructs/datastructs";
+import { camelToPascalCase } from "../case-util";
 
 export async function buildAngularFormHTMLFromDdl(moduleName: string, humanName: string, schema: DatabaseTable, dialect: Dialect) {
   const columns = schema.columns;
@@ -9,7 +9,7 @@ export async function buildAngularFormHTMLFromDdl(moduleName: string, humanName:
   const formFields = columns.map(field => {
     const javaType = columnToTypeJava(field, dialect);
     const fieldName = field.javaFieldName;
-    const fieldNamePascal = columnToPascalFieldJava(field.column);
+    const fieldNamePascal = camelToPascalCase(field.javaFieldName);
     const ui = field.uiComponent;
 
     if(ui != null) {
@@ -49,7 +49,7 @@ export async function buildAngularFormHTMLFromDdl(moduleName: string, humanName:
         <div class="alert alert-warning m-0 px-3 py-1" role="alert">
           <i class="fa-solid fa-triangle-exclamation"></i>&nbsp;Os campos com * são de preenchimento obrigatórios.
         </div>
-        <button class="ms-2" type="button" mat-raised-button (click)="navigateBack()">
+        <button class="ms-2" type="button" mat-raised-button (click)="navigateBack()" [hidden]="false">
           <i class="fa-solid fa-reply-all"></i>
           Voltar
         </button>
@@ -64,17 +64,26 @@ export async function buildAngularFormHTMLFromDdl(moduleName: string, humanName:
 
             </div>
 
+            @if (!isViewRead) {
             <div class="d-flex">
               <button type="submit" mat-raised-button color="primary" class="ms-auto">
                 <i class="fa-solid fa-floppy-disk"></i> {{ isViewNew ? "Salvar" : "Atualizar" }}
               </button>
             </div>
+            }
 
           </div>
         </div>
       </form>
     </div>
   </div>
+</div>
+
+<div mat-dialog-actions align="end" [hidden]="true">
+  <button mat-raised-button (click)="onClose()">
+    <i class="fas fa-times-circle"></i>
+    Fechar
+  </button>
 </div>
 `;
 }

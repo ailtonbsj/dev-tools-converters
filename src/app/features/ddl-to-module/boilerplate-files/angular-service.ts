@@ -1,11 +1,14 @@
 import { plural } from "@umatch/pluralize-ptbr";
 import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
-import { columnToTypeTypeScript, pascalToKebabCase } from "../module-buillders";
+import { pascalToKebabCase } from "../case-util";
+import { columnToTypeTypeScript } from "../sql-datastructs/datastructs";
 
 export async function buildAngularServiceFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
   const pluralKebabName = plural(pascalToKebabCase(moduleName));
   const columns = schema.columns;
-  const properties = columns.map(col => `${col.javaFieldName}: ${columnToTypeTypeScript(col, dialect)}`);
+  const primaries = columns.filter(col => col.isPrimary);
+
+  const idType = primaries.length > 1 ? 'string' : columnToTypeTypeScript(primaries[0], dialect);
 
   return `
 import { HttpClient, HttpParams } from "@angular/common/http";
@@ -37,7 +40,7 @@ export class ${moduleName}Service {
     return this.http.get<${moduleName}[]>(\`\${this.endpoint}/search\`, { params }).pipe(first());
   }
 
-  show(id: number): Observable<${moduleName}> {
+  show(id: ${idType}): Observable<${moduleName}> {
     return this.http.get<${moduleName}>(\`\${this.endpoint}/\${id}\`).pipe(first());
   }
 
@@ -49,7 +52,7 @@ export class ${moduleName}Service {
     return this.http.put<${moduleName}>(\`\${this.endpoint}/\${entity.id}\`, entity);
   }
 
-  destroy(id: number): Observable<void> {
+  destroy(id: ${idType}): Observable<void> {
     return this.http.delete<void>(\`\${this.endpoint}/\${id}\`);
   }
 

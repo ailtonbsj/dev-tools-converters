@@ -75,6 +75,51 @@ export function columnToFieldJava(columnOfTable: string) {
   return snakeToCamelCase(normalizeColumnOfTable(columnOfTable));
 }
 
+export function columnToTypeTypeScript(col: DatabaseTableColunm, dialect: Dialect) {
+  let columnType = 'UNKNOWN_TYPE';
+  switch (col.type.toLowerCase()) {
+    case 'varchar2':
+    case 'varchar':
+    case 'bpchar':
+    case 'text':
+      columnType = 'string';
+      break;
+    case 'numeric':
+    case 'real':
+    case 'double precision':
+    case 'number':
+      columnType = col.len > 16 ? 'string' : 'number';
+      break;
+    case 'bigserial':
+    case 'bigint':
+    case 'serial8':
+    case 'int8':
+      columnType = 'number';
+      break;
+    case 'serial':
+    case 'smallserial':
+    case 'integer':
+    case 'smallint':
+    case 'serial4':
+    case 'int4':
+      columnType = 'number';
+      break;
+    case 'timestamp':
+      columnType = 'Date';
+      break;
+    case 'date':
+      columnType = 'Date';
+      break;
+    case 'bool':
+    case 'boolean':
+      columnType = 'boolean';
+      break;
+    default:
+      console.log(col.type);
+  }
+  return columnType;
+}
+
 export function normalizeColumnOfTable(snakeColunm: string) {
   let res = snakeColunm.toLowerCase().replaceAll(/^ci_|^cd_|^nr_|^nm_|^dt_|^ds_|^fl_|^tp_|^hr_|^vr_|^vl_/g,'') +
     ((/^cd_/i).test(snakeColunm.toLowerCase()) ? 'Id' : '');

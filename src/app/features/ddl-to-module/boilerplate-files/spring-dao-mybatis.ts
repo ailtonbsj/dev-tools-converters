@@ -1,7 +1,6 @@
 import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
-import { columnToPascalFieldJava } from "../module-buillders";
 import { columnToFieldJava, columnToTypeJava } from "../sql-datastructs/datastructs";
-import { snakeToCamelCase } from "../case-util";
+import { camelToPascalCase, snakeToCamelCase } from "../case-util";
 
 export async function buildMyBatisDAOFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
   const entityNameCamel = snakeToCamelCase(schema.table.replace('tb_', ''));
@@ -27,8 +26,8 @@ export async function buildMyBatisDAOFromDdl(moduleName: string, schema: Databas
     return `${col.column}${space}= #{${columnToFieldJava(col.column)}}`;
   });
   const andClauses = columns.map(col => {
-    const strFragment = columnToTypeJava(col, dialect) === 'String' ? ` && !example.get${columnToPascalFieldJava(col.column)}().isBlank()` : '';
-    return `and("e.${col.column} = #{example.${columnToFieldJava(col.column)}}", example.get${columnToPascalFieldJava(col.column)}() != null${strFragment})`;
+    const strFragment = columnToTypeJava(col, dialect) === 'String' ? ` && !example.get${camelToPascalCase(col.javaFieldName)}().isBlank()` : '';
+    return `and("e.${col.column} = #{example.${columnToFieldJava(col.column)}}", example.get${camelToPascalCase(col.javaFieldName)}() != null${strFragment})`;
   });
   const fieldToColumnMap = columns.map(col => {
     const field = columnToFieldJava(col.column);

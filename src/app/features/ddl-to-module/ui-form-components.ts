@@ -1,7 +1,8 @@
-export function inputText(label: string, fieldName: string, lenChars: number) {
+export function inputText(label: string, fieldName: string, lenChars: number, isPrimaryKey = false) {
+      const parentIdDeclaration = isPrimaryKey ? ` [hidden]="this.data.parentId"` : '';
       return `
           <!-- ${label} -->
-          <div class="fx-col-2">
+          <div class="fx-col-2"${parentIdDeclaration}>
             <mat-form-field appearance="outline">
               <mat-label>${label}</mat-label>
               <input matInput type="text" formControlName="${fieldName}" maxlength="${lenChars}" />
@@ -13,10 +14,11 @@ export function inputText(label: string, fieldName: string, lenChars: number) {
 `;
 }
 
-export function maskedAsNumber(label: string, fieldName: string, lenChars: number) {
+export function maskedAsNumber(label: string, fieldName: string, lenChars: number, isPrimaryKey = false) {
+      const parentIdDeclaration = isPrimaryKey ? ` [hidden]="this.data.parentId"` : '';
       return `
           <!-- ${label} -->
-          <div class="fx-col-2">
+          <div class="fx-col-2"${parentIdDeclaration}>
             <mat-form-field appearance="outline">
               <mat-label>${label}</mat-label>
               <input matInput type="text" formControlName="${fieldName}" maxlength="${lenChars}" mask="0*" />

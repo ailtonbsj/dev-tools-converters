@@ -9,7 +9,7 @@ export function inputText(label: string, colName: string) {
           <td mat-cell *matCellDef="let el" class="text-center align-middle fs-6">
             {{ el.${colName} }}
             @if (el.${colName} === null) {
-            <mat-chip>{{ dataNotFound }}</mat-chip>
+            {{ dataNotFound }}
             }
           </td>
         </ng-container>`;
@@ -26,7 +26,7 @@ export function inputDate(label: string, colName: string) {
           <td mat-cell *matCellDef="let el" class="text-center align-middle fs-6">
             {{ el.${colName} | date : 'shortDate' }}
             @if (el.${colName} === null) {
-            <mat-chip>{{ dataNotFound }}</mat-chip>
+            {{ dataNotFound }}
             }
           </td>
         </ng-container>`;
@@ -43,7 +43,7 @@ export function inputDateTime(label: string, colName: string) {
           <td mat-cell *matCellDef="let el" class="text-center align-middle fs-6">
             {{ el.${colName} | date : 'short' }}
             @if (el.${colName} === null) {
-            <mat-chip>{{ dataNotFound }}</mat-chip>
+            {{ dataNotFound }}
             }
           </td>
         </ng-container>`;
@@ -60,7 +60,7 @@ export function maskedAsCurrency(label: string, colName: string) {
           <td mat-cell *matCellDef="let el" class="text-center align-middle fs-6">
             {{ el.${colName} | currency }}
             @if (el.${colName} === null) {
-            <mat-chip>{{ dataNotFound }}</mat-chip>
+            {{ dataNotFound }}
             }
           </td>
         </ng-container>`;

@@ -1,8 +1,9 @@
+import { pascalToCamelCase, pascalToKebabCase } from "../case-util";
 import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
-import { pascalToKebabCase } from "../module-buillders";
 
 export async function buildAngularDataTableFromDdl(moduleName: string, humanName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
   const moduleNameKebab = pascalToKebabCase(moduleName);
+  const moduleNameCamel = pascalToCamelCase(moduleName);
   const columns = schema.columns;
 
   const columnsMenuDeclaration = columns.map(c => {
@@ -28,8 +29,11 @@ import { MatSelectionList } from '@angular/material/list';
 import { ConfirmDialogComponent } from 'src/app/shared/components/confirm-dialog/confirm-dialog.component';
 import { ConfirmDialogData } from 'src/app/shared/components/confirm-dialog/confirm-dialog-data.model';
 import { MatDialog } from '@angular/material/dialog';
+import { ViewState } from 'src/app/shared/models/dialog-data.model';
 import { ${moduleName} } from '../${moduleNameKebab}.model';
 import { ${moduleName}Service } from '../${moduleNameKebab}.service';
+import { ${moduleName}FormComponent } from '../${moduleNameKebab}-form/${moduleNameKebab}-form.component';
+import { ${moduleName}DialogData } from '../${moduleNameKebab}-form-data.model';
 
 @Component({
   selector: 'app-${moduleNameKebab}-datatable',
@@ -45,62 +49,41 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
   private spinnerText = inject(SpinnerTextService);
   private alert = inject(AlertService);
   private dialog = inject(MatDialog);
-  private service = inject(${moduleName}Service);
+  private ${moduleNameCamel}Service = inject(${moduleName}Service);
 
-  form = this.fb.group({
+  form${moduleName} = this.fb.group({
     ${columns.map(c => c.javaFieldName + ': [\'\'],').join('\n    ')}
   });
 
-  isFirstSearch = true;
-  enableSearch = false;
-  isLoading = false;
+  isFirst${moduleName}Search = true;
+  enable${moduleName}Search = false;
+  is${moduleName}Loading = false;
 
-  datasource = new MatTableDataSource(<${moduleName}[]>[]);
-  displayFooter = ['footer'];
-  columns: { id: string, label: string, enabled: boolean }[] = [
+  datasource${moduleName} = new MatTableDataSource(<${moduleName}[]>[]);
+  display${moduleName}Footer = ['footer'];
+  columns${moduleName}: { id: string, label: string, enabled: boolean }[] = [
     ${columnsMenuDeclaration.join('\n    ')}
   ];
-  displayedColumns: string[] = [
+  displayed${moduleName}Columns: string[] = [
     ...this.columns.filter(c => c.enabled).map(c => c.id), 'actions'
   ];
 
-  readonly dataNotFound = 'Não foi informado!';
+  readonly dataNotFound = 'Não informado!';
 
-  entity = <${moduleName}>{};
-  entityPage = <Page<${moduleName}>>{ size: 10 };
-  pageCtl: PageControl = <PageControl>{
+  entity${moduleName} = <${moduleName}>{};
+  ${moduleNameCamel}Page = <Page<${moduleName}>>{ size: 10 };
+  page${moduleName}Ctl: PageControl = <PageControl>{
     pageNumber: 0,
     pageSize: 10,
     directions: '',
     sortProps: '',
   };
 
-  @ViewChild(MatSort) sortViewChild: MatSort = <MatSort>{};
-  sorts = signal<{ active: string, direction: string }[]>([]);
+  @ViewChild(MatSort) sortViewChild${moduleName}: MatSort = <MatSort>{};
+  sorts${moduleName} = signal<{ active: string, direction: string }[]>([]);
 
   ngAfterViewInit(): void {
-    this.sortViewChild.sortChange.subscribe({
-      next: (sort: Sort) => {
-        const item = this.sorts().find(o => o.active === sort.active);
-        if (item) {
-          if (sort.direction !== '') item.direction = sort.direction;
-          else this.sorts.set(this.sorts().filter(o => o.active != item.active));
-        } else {
-          if (sort.direction !== '') {
-            const sortsArr = this.sorts();
-            sortsArr.push(sort);
-            this.sorts.set(sortsArr);
-          }
-        }
-        const sortProps = this.sorts().map(o => o.active).join(',');
-        const directions = this.sorts().map(o => o.direction).join(',');
-        if (sortProps !== this.pageCtl.sortProps || directions !== this.pageCtl.directions) {
-          this.pageCtl.sortProps = sortProps;
-          this.pageCtl.directions = directions;
-          this.search();
-        }
-      }
-    });
+    init${humanName}Datatable()
   }
 
   onColumnMenuClick(list: MatSelectionList) {
@@ -117,9 +100,9 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
         ...this.form.value as any,
         ...this.normalizeControlsFloat(${columns.filter(c => ['BigDecimal', 'Double', 'Float'].includes(c.javaType)).map(c => `'${c.javaFieldName}'`).join(', ')})
       };
-      this.isFirstSearch = false;
-      this.enableSearch = true;
-      this.search();
+      this.isFirst${moduleName}Search = false;
+      this.enable${moduleName}Search = true;
+      this.search${moduleName}();
     }
   }
 
@@ -138,16 +121,16 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
       .map(f => f?.setValue(f?.value.trim()));
   }
 
-  async search() {
-    if (!this.enableSearch) return;
-    this.enableSearch = false;
-    this.isLoading = true;
+  async search${moduleName}() {
+    if (!this.enable${moduleName}Search) return;
+    this.enable${moduleName}Search = false;
+    this.is${moduleName}Loading = true;
     this.spinnerText.show('Carregando dados da tabela ...');
     try {
-      const page = await firstValueFrom(this.service.filter(this.entity, this.pageCtl));
-      this.displayFooter = page.content?.length !== 0 ? [] : ['footer'];
-      this.entityPage = page;
-      this.datasource = new MatTableDataSource(this.entityPage.content);
+      const page = await firstValueFrom(this.${moduleNameCamel}Service.filter(this.entity${moduleName}, this.page${moduleName}Ctl));
+      this.display${moduleName}Footer = page.content?.length !== 0 ? [] : ['footer'];
+      this.${moduleName}Page = page;
+      this.datasource${moduleName} = new MatTableDataSource(this.entityPage.content);
     } catch (e: unknown) {
       if (e instanceof HttpErrorResponse) {
         if (e.status === HttpStatusCode.NotFound) {
@@ -158,22 +141,22 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
       } else console.log(e);
     }
     this.spinnerText.hide();
-    this.isLoading = false;
-    this.enableSearch = true;
+    this.is${moduleName}Loading = false;
+    this.enable${moduleName}Search = true;
   }
 
-  onPageChange(event: PageEvent) {
-    this.pageCtl.pageNumber = event.pageIndex;
-    this.pageCtl.pageSize = event.pageSize;
-    this.search();
+  onPage${moduleName}Change(event: PageEvent) {
+    this.page${moduleName}Ctl.pageNumber = event.pageIndex;
+    this.page${moduleName}Ctl.pageSize = event.pageSize;
+    this.search${moduleName}();
   }
 
-  clearForm() {
-    this.form.reset({
+  clearForm${moduleName}() {
+    this.form${moduleName}.reset({
       ${columns.map(c => c.javaFieldName + ': \'\',').join('\n      ')}
     });
-    this.enableSearch = false;
-    this.isFirstSearch = true;
+    this.enable${moduleName}Search = false;
+    this.isFirst${moduleName}Search = true;
   }
 
   alertSuccess(message: string) {
@@ -196,12 +179,30 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
     });
   }
 
-  showFormReadOnly(id: string) {
-    this.router.navigate([\`./\${id}\`], { relativeTo: this.route });
+  async showNew${moduleName}Form() {
+    this.router.navigate([\`./novo\`], { relativeTo: this.route });
+    // this.showFormDialog();
   }
 
-  showForm(id: string) {
+  async showEdit${moduleName}Form(id: string) {
     this.router.navigate([\`./\${id}/edicao\`], { relativeTo: this.route });
+    // this.showFormDialog('edicao', id);
+  }
+
+  async showReadOnly${moduleName}Form(id: string) {
+    this.router.navigate([\`./\${id}\`], { relativeTo: this.route });
+    // this.showFormDialog('leitura', id);
+  }
+
+  async show${moduleName}FormDialog(viewState: ViewState = 'novo', id?: string) {
+    const dialogRef = this.dialog.open(${moduleName}FormComponent, {
+      const data: ${moduleName}DialogData = { viewState, id };
+      disableClose: true,
+      minWidth: '800px',
+      data
+    });
+    const item = await firstValueFrom<${moduleName}>(dialogRef.afterClosed());
+    if(item != null) this.search();
   }
 
   confirmDelete(): Observable<boolean> {
@@ -218,7 +219,7 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
     return dialogRef.afterClosed();
   }
 
-  async confirmRemove(id: number) {
+  async confirmRemove${moduleName}(id: number) {
     try {
       if(await firstValueFrom(this.confirmDelete())) {
         await firstValueFrom(this.service.destroy(id));
@@ -232,6 +233,31 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
         } else console.log(e);
       } else console.log(e);
     }
+  }
+
+  async init${humanName}Datatable() {
+    this.sortViewChild${humanName}.sortChange.subscribe({
+      next: (sort: Sort) => {
+        const item = this.sorts${humanName}().find(o => o.active === sort.active);
+        if (item) {
+          if (sort.direction !== '') item.direction = sort.direction;
+          else this.sorts${humanName}.set(this.sorts().filter(o => o.active != item.active));
+        } else {
+          if (sort.direction !== '') {
+            const sortsArr = this.sorts${humanName}();
+            sortsArr.push(sort);
+            this.sorts${humanName}.set(sortsArr);
+          }
+        }
+        const sortProps = this.sorts${humanName}().map(o => o.active).join(',');
+        const directions = this.sorts${humanName}().map(o => o.direction).join(',');
+        if (sortProps !== this.page${humanName}Ctl.sortProps || directions !== this.page${humanName}Ctl.directions) {
+          this.page${humanName}Ctl.sortProps = sortProps;
+          this.page${humanName}Ctl.directions = directions;
+          this.search${humanName}();
+        }
+      }
+    });
   }
 
 }

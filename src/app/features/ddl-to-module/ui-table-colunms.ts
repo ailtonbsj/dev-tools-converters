@@ -1,4 +1,4 @@
-export function inputText(label: string, colName: string) {
+export function inputTextColumn(label: string, colName: string) {
     return `
         <!-- ${label} Column -->
         <ng-container matColumnDef="${colName}">
@@ -15,7 +15,7 @@ export function inputText(label: string, colName: string) {
         </ng-container>`;
 }
 
-export function inputDate(label: string, colName: string) {
+export function inputDateColumn(label: string, colName: string) {
     return `
         <!-- ${label} Column -->
         <ng-container matColumnDef="${colName}">
@@ -32,7 +32,7 @@ export function inputDate(label: string, colName: string) {
         </ng-container>`;
 }
 
-export function inputDateTime(label: string, colName: string) {
+export function inputDateTimeColumn(label: string, colName: string) {
     return `
         <!-- ${label} Column -->
         <ng-container matColumnDef="${colName}">
@@ -49,7 +49,7 @@ export function inputDateTime(label: string, colName: string) {
         </ng-container>`;
 }
 
-export function maskedAsCurrency(label: string, colName: string) {
+export function maskedAsCurrencyColumn(label: string, colName: string) {
     return `
         <!-- ${label} Column -->
         <ng-container matColumnDef="${colName}">
@@ -66,7 +66,7 @@ export function maskedAsCurrency(label: string, colName: string) {
         </ng-container>`;
 }
 
-export function staticSelect(label: string, colName: string) {
+export function staticSelectColumn(label: string, colName: string) {
     return `
         <!-- ${label} Column -->
         <ng-container matColumnDef="${colName}">

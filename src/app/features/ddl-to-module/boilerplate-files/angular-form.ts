@@ -21,7 +21,7 @@ export async function buildAngularFormFromDdl(moduleName: string, humanName: str
   const disableFieldsDeclaration = `\n    [${disableFields}].map(f => this.form.get(f)?.disable());`;
 
   const snippetsAutoComplete = columns.filter(col => col.uiComponent === 'autoComplete').map(field => {
-    const fieldName = columnToFieldJava(field.column);
+    const fieldName = field.javaFieldName;
     const fieldNamePascal = camelToPascalCase(field.javaFieldName);
 
     return `
@@ -81,8 +81,49 @@ export async function buildAngularFormFromDdl(moduleName: string, humanName: str
 `;
   });
 
+  const snippetsDynamicSelect = columns.filter(col => col.uiComponent === 'dynamicSelect').map(field => {
+    const fieldName = field.javaFieldName;
+    const fieldType = columnToTypeTypeScript(field, dialect);
+    const fieldNamePascal = camelToPascalCase(field.javaFieldName);
+
+    return `
+  /* ${fieldNamePascal} Select routines BEGIN */
+
+  ${fieldName}List: ${fieldNamePascal}[] = [];
+
+  compare${fieldNamePascal}(e1: ${fieldNamePascal}, e2: ${fieldNamePascal}) {
+    return e1.id === e2.id
+  }
+
+  async patch${fieldNamePascal}Select(value: ${fieldType}) {
+    if(value == null${fieldType === 'string' ? ' || value == \'\'' : ''}) {
+      return { ${fieldName}: {} as ${fieldNamePascal} };
+    }
+    if(this.isViewRead) {
+      const item = await firstValueFrom(this.${fieldName}Service.show(value));
+      if(item) this.${fieldName}List.push(item);
+    }
+    const selected = this.${fieldName}List.find(e => e.id === value);
+    if(selected != null && selected.id != null) {
+      return { ${fieldName}: selected };
+    } else {
+      const notFound = { id: value, target: \`\${fieldNamePascal} inexistente ou removido! ⚠️\`, ativo: false } as ${fieldNamePascal};
+      this.${fieldName}List.push(notFound);
+      return { ${fieldName}: notFound };
+    }
+  }
+
+  async init${fieldNamePascal}Select() {
+    if(!this.isViewRead)
+      this.${fieldName}List = await firstValueFrom(this.${fieldName}Service.index());
+  }
+
+  /* ${fieldNamePascal} Select routines END */
+`;
+  });
+
   return `
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, AfterViewInit } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MaterialModule } from 'src/app/shared/material.module';
@@ -90,6 +131,7 @@ import { firstValueFrom } from 'rxjs';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { NgxMaskDirective } from 'ngx-mask';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { SecurityService } from 'src/app/shared/services/security.service';
 import { ${moduleName} } from '../${moduleNameKebab}.model';
 import { ${moduleName}Service } from '../${moduleNameKebab}.service';
 // import { ${moduleName}DialogData } from '../${moduleNameKebab}-form-data.model';
@@ -100,13 +142,14 @@ import { ${moduleName}Service } from '../${moduleNameKebab}.service';
   templateUrl: '${moduleNameKebab}-form.component.html',
   styleUrl: './${moduleNameKebab}-form.component.scss',
 })
-export class ${moduleName}FormComponent implements OnInit {
+export class ${moduleName}FormComponent implements OnInit, AfterViewInit {
 
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private fb = inject(FormBuilder);
   private alert = inject(AlertService);
   private service = inject(${moduleName}Service);
+  private securityService = inject(SecurityService);
   // public dialogRef = inject(MatDialogRef<${moduleName}FormComponent>); Dialog Mode
   // public data = inject<${moduleName}DialogData>(MAT_DIALOG_DATA); Dialog Mode
 
@@ -130,9 +173,21 @@ export class ${moduleName}FormComponent implements OnInit {
     // Redirect if wrong entityId
     if ((this.isViewEdit || this.isViewRead) && (this.entityId == null || this.entityId === '')) this.router.navigate([this.fallback]);
     if (this.isViewNew) this.form.enable();
+    // await Promise.all([
+    //   this.initAutocomplete(),
+    //   this.initSelect()
+    // ]);
     // if(this.data.parentId) this.form.controls.parentId.setValue(this.data.parentId);
     if (this.isViewEdit || this.isViewRead) await this.loadForm();
     if (this.isViewRead) this.form.disable();
+  }
+
+  async ngAfterViewInit() {
+    // this.initDatatable();
+  }
+
+  navigateBack() {
+    this.router.navigate([this.fallback]);
   }
 
   async loadForm() {
@@ -142,7 +197,8 @@ export class ${moduleName}FormComponent implements OnInit {
     );
     this.form.patchValue({
       ...entity,
-      ...nullEntity
+      ...nullEntity,
+      // ...await this.patchSelect(entity.selectField)
     });${disableFieldsDeclaration}
   }
 
@@ -210,12 +266,18 @@ export class ${moduleName}FormComponent implements OnInit {
     });
   }
 
+  hasRole(role: string) {
+    return this.securityService.hasRole(role);
+  }
+
   /* Dialog mode
   onClose() {
     this.dialogRef.close();
   } */
 
 ${snippetsAutoComplete.join('')}
+
+${snippetsDynamicSelect.join('')}
 
 }
 

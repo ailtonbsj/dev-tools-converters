@@ -30,6 +30,7 @@ import { ConfirmDialogComponent } from 'src/app/shared/components/confirm-dialog
 import { ConfirmDialogData } from 'src/app/shared/components/confirm-dialog/confirm-dialog-data.model';
 import { MatDialog } from '@angular/material/dialog';
 import { ViewState } from 'src/app/shared/models/dialog-data.model';
+import { NgxMaskDirective } from 'ngx-mask';
 import { SecurityService } from 'src/app/shared/services/security.service';
 import { ${moduleName} } from '../${moduleNameKebab}.model';
 import { ${moduleName}Service } from '../${moduleNameKebab}.service';
@@ -38,7 +39,7 @@ import { ${moduleName}DialogData } from '../${moduleNameKebab}-form-data.model';
 
 @Component({
   selector: 'app-${moduleNameKebab}-datatable',
-  imports: [CommonModule, RouterModule, ReactiveFormsModule, MaterialModule, SortIconComponent, DatePipe, CurrencyPipe],
+  imports: [CommonModule, RouterModule, ReactiveFormsModule, MaterialModule, SortIconComponent, DatePipe, CurrencyPipe, NgxMaskDirective],
   templateUrl: '${moduleNameKebab}-datatable.component.html',
   styleUrl: '${moduleNameKebab}-datatable.component.scss'
 })
@@ -53,7 +54,7 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
   private securityService = inject(SecurityService);
   private ${moduleNameCamel}Service = inject(${moduleName}Service);
 
-  form${moduleName} = this.fb.group({
+  ${moduleNameCamel}Form = this.fb.group({
     ${columns.map(c => c.javaFieldName + ': [\'\'],').join('\n    ')}
   });
 
@@ -61,18 +62,18 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
   enable${moduleName}Search = false;
   is${moduleName}Loading = false;
 
-  datasource${moduleName} = new MatTableDataSource(<${moduleName}[]>[]);
-  display${moduleName}Footer = ['footer'];
-  columns${moduleName}: { id: string, label: string, enabled: boolean }[] = [
+  ${moduleNameCamel}Datasource = new MatTableDataSource(<${moduleName}[]>[]);
+  ${moduleNameCamel}displayFooter = ['footer'];
+  ${moduleNameCamel}Columns: { id: string, label: string, enabled: boolean }[] = [
     ${columnsMenuDeclaration.join('\n    ')}
   ];
   displayed${moduleName}Columns: string[] = [
-    ...this.columns${moduleName}.filter(c => c.enabled).map(c => c.id), 'actions'
+    ...this.${moduleNameCamel}Columns.filter(c => c.enabled).map(c => c.id), 'actions'
   ];
 
   readonly dataNotFound = 'Não informado!';
 
-  entity${moduleName} = <${moduleName}>{};
+  ${moduleNameCamel}Entity = <${moduleName}>{};
   ${moduleNameCamel}Page = <Page<${moduleName}>>{ size: 10 };
   page${moduleName}Ctl: PageControl = <PageControl>{
     pageNumber: 0,
@@ -81,7 +82,7 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
     sortProps: '',
   };
 
-  @ViewChild('sort${moduleName}') sortViewChild${moduleName}: MatSort = <MatSort>{};
+  @ViewChild('${moduleName}Sort') sortViewChild${moduleName}: MatSort = <MatSort>{};
   sorts${moduleName} = signal<{ active: string, direction: string }[]>([]);
 
   ngAfterViewInit(): void {
@@ -90,7 +91,7 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
 
   onColumn${moduleName}MenuClick(list: MatSelectionList) {
     const selected = list.selectedOptions.selected.map(i => i.value);
-    this.displayed${moduleName}Columns = this.columns${moduleName}.filter(c => selected.includes(c.id)).map(c => c.id);
+    this.displayed${moduleName}Columns = this.${moduleNameCamel}Columns.filter(c => selected.includes(c.id)).map(c => c.id);
     this.displayed${moduleName}Columns.push('actions');
   }
 
@@ -129,10 +130,10 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
     this.is${moduleName}Loading = true;
     this.spinnerText.show('Carregando dados da tabela ...');
     try {
-      const page = await firstValueFrom(this.${moduleNameCamel}Service.filter(this.entity${moduleName}, this.page${moduleName}Ctl));
-      this.display${moduleName}Footer = page.content?.length !== 0 ? [] : ['footer'];
+      const page = await firstValueFrom(this.${moduleNameCamel}Service.filter(this.${moduleNameCamel}Entity, this.page${moduleName}Ctl));
+      this.${moduleNameCamel}displayFooter = page.content?.length !== 0 ? [] : ['footer'];
       this.${moduleNameCamel}Page = page;
-      this.datasource${moduleName} = new MatTableDataSource(this.${moduleNameCamel}Page.content);
+      this.${moduleNameCamel}Datasource = new MatTableDataSource(this.${moduleNameCamel}Page.content);
     } catch (e: unknown) {
       if (e instanceof HttpErrorResponse) {
         if (e.status === HttpStatusCode.NotFound) {
@@ -154,7 +155,7 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
   }
 
   clearForm${moduleName}() {
-    this.form${moduleName}.reset({
+    this.${moduleNameCamel}Form.reset({
       ${columns.map(c => c.javaFieldName + ': \'\',').join('\n      ')}
     });
     this.enable${moduleName}Search = false;

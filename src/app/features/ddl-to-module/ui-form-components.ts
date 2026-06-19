@@ -58,6 +58,31 @@ export function staticSelect(label: string, fieldName: string, allowValues: stri
 `;
 }
 
+export function dynamicSelect(label: string, fieldName: string, fieldNamePascal: string) {
+  return `
+          <!-- ${label} -->
+          <div class="fx-col-4">
+            <mat-form-field appearance="outline">
+              <mat-label>${label}</mat-label>
+              <mat-select formControlName="${fieldName}" [compareWith]="compare${fieldNamePascal}">
+                <mat-option value="">Selecione ...</mat-option>
+                @for (item of ${fieldName}List; track item.id) {
+                <mat-option [value]="item" [disabled]="item.ativo">
+                  {{item.id}} - {{item.target}}
+                </mat-option>
+                }
+                @empty {
+                  <mat-option [disabled]="true">Nenhum ${label} disponível.</mat-option>
+                }
+              </mat-select>
+              @if (form.controls.${fieldName}.invalid) {
+              <mat-error>Campo obrigatório.</mat-error>
+              }
+            </mat-form-field>
+          </div>
+`;
+}
+
 export function autoComplete(label: string, fieldName: string, fieldNamePascal: string) {
   return `
           <!-- ${label} -->

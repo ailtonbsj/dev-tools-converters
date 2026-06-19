@@ -1,26 +1,43 @@
 import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
-import { inputDate, inputDateTime, inputText, maskedAsCurrency, staticSelect } from "../ui-table-colunms";
 import { columnToTypeJava } from "../sql-datastructs/datastructs";
-import { pascalToCamelCase } from "../case-util";
+import { camelToPascalCase, pascalToCamelCase, pascalToSnakeCase } from "../case-util";
+import { autoComplete, inputDate, inputDateTime, inputText, maskedAsCurrency, maskedAsFloat, maskedAsNumber, staticSelect } from "../ui-form-components";
+import { inputDateColumn, inputDateTimeColumn, inputTextColumn, maskedAsCurrencyColumn, staticSelectColumn } from "../ui-table-colunms";
 
 export async function buildAngularDataTableHTMLFromDdl(moduleName: string, humanName: string, schema: DatabaseTable, dialect: Dialect) {
   const moduleNameCamel = pascalToCamelCase(moduleName);
+  const moduleNameSnakeUp = pascalToSnakeCase(moduleName).toUpperCase();
   const columns = schema.columns;
 
   const formFields = columns.map(field => {
+    const javaType = columnToTypeJava(field, dialect);
     const fieldName = field.javaFieldName;
-    const length = field.len ?? 100;
-      return `
-          <!-- ${field.label} -->
-          <div class="fx-col-1">
-            <mat-form-field appearance="outline">
-              <mat-label>${field.label}</mat-label>
-              <input matInput type="text" formControlName="${fieldName}" maxlength="${length}" />
-              @if (form.controls.${fieldName}.invalid) {
-              <mat-error>Campo obrigatório.</mat-error>
-              }
-            </mat-form-field>
-          </div>`;
+    const fieldNamePascal = camelToPascalCase(field.javaFieldName);
+    const ui = field.uiComponent;
+    if(ui != null) {
+      if(ui === 'maskedAsNumber')
+        return maskedAsNumber(field.label, fieldName, field.lenChars);
+      else if(ui === 'staticSelect')
+        return staticSelect(field.label, fieldName, field.allowValues);
+      else if(ui === 'autoComplete')
+        return autoComplete(field.label, fieldName, fieldNamePascal);
+      else if(ui === 'inputDate')
+        return inputDate(field.label, fieldName, field.lenChars);
+      else if(ui === 'inputDateTime')
+        return inputDateTime(field.label, fieldName, field.lenChars);
+      else if(ui === 'maskedAsCurrency')
+        return maskedAsCurrency(field.label, fieldName, field.lenChars);
+    } else {
+      if(['Integer', 'Long'].includes(javaType))
+        return maskedAsNumber(field.label, fieldName, field.lenChars);
+      if(['BigDecimal', 'Double', 'Float'].includes(javaType))
+        return maskedAsFloat(field.label, fieldName, field.len, field.scale);
+      else if(['LocalDate'].includes(javaType))
+        return inputDate(field.label, fieldName, field.lenChars);
+      else if(['LocalDateTime'].includes(javaType))
+        return inputDateTime(field.label, fieldName, field.lenChars);
+    }
+    return inputText(field.label, fieldName, field.lenChars);
   });
 
   const tableColumns = columns.map(column => {
@@ -30,26 +47,26 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
 
     if(ui != null) {
       if(ui === 'maskedAsNumber')
-        return inputText(column.label, colName);
+        return inputTextColumn(column.label, colName);
       else if(ui === 'autoComplete')
-        return inputText(column.label, colName);
+        return inputTextColumn(column.label, colName);
       else if(ui === 'inputDate')
-        return inputDate(column.label, colName);
+        return inputDateColumn(column.label, colName);
       else if(ui === 'inputDateTime')
-        return inputDateTime(column.label, colName);
+        return inputDateTimeColumn(column.label, colName);
       else if(ui === 'maskedAsCurrency')
-        return maskedAsCurrency(column.label, colName);
+        return maskedAsCurrencyColumn(column.label, colName);
       else if(ui === 'staticSelect')
-        return staticSelect(column.label, colName);
+        return staticSelectColumn(column.label, colName);
     } else {
       if(['Integer', 'Long'].includes(javaType))
-        return inputText(column.label, colName);
+        return inputTextColumn(column.label, colName);
       else if(['LocalDate'].includes(javaType))
-        return inputDate(column.label, colName);
+        return inputDateColumn(column.label, colName);
       else if(['LocalDateTime'].includes(javaType))
-        return inputDateTime(column.label, colName);
+        return inputDateTimeColumn(column.label, colName);
     }
-    return inputText(column.label, colName);
+    return inputTextColumn(column.label, colName);
   });
 
   return `
@@ -59,7 +76,7 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
       <h1>Consulta ${humanName}</h1>
     </div>
     <div class="card-body">
-      <form [formGroup]="form${moduleName}" (ngSubmit)="onSubmit${moduleName}()">
+      <form [formGroup]="${moduleNameCamel}form" (ngSubmit)="onSubmit${moduleName}()">
 
         <div class="fx-grid">
           ${formFields.join('\n')}
@@ -73,10 +90,12 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
           <button type="button" mat-raised-button (click)="clearForm${moduleName}()" [disabled]="is${moduleName}Loading">
             <i class="fa-solid fa-eraser"></i> Limpar
           </button>
+          <!-- @if (hasRole('${moduleNameSnakeUp}_INSERIR')) { -->
           <button type="button" color="primary" mat-raised-button (click)="showNew${moduleName}Form()">
             <i class="fa-solid fa-plus"></i>
             Novo
           </button>
+          <!-- } -->
         </div>
 
       </form>
@@ -106,7 +125,7 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
     </div>
     <div class="card-body">
       <div class="datatable-panel">
-        <table mat-table [dataSource]="datasource${moduleName}" matSort #sort${moduleName}="matSort" multiTemplateDataRows
+        <table mat-table [dataSource]="${moduleNameCamel}Datasource" matSort #sort${moduleName}="matSort" multiTemplateDataRows
           class="table table-striped table-hover table-bordered table-condensed table-border-brown">
           ${tableColumns.join('\n')}
 
@@ -116,15 +135,20 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
               Ações
             </th>
             <td mat-cell *matCellDef="let el" class="text-center align-middle fs-6 w2-actions">
-              <button type="button" mat-icon-button color="primary" matTooltip="Visualizar" (click)="showReadOnly${moduleName}Form(el.id)" [hidden]="true">
-                <mat-icon>visibility</mat-icon>
-              </button>
+              <!-- @if (hasRole('${moduleNameSnakeUp}_EDITAR')){ -->
               <button type="button" mat-icon-button color="primary" matTooltip="Editar" (click)="showEdit${moduleName}Form(el.id)" [hidden]="false">
                 <mat-icon>edit</mat-icon>
               </button>
+              <!-- } @else { -->
+              <button type="button" mat-icon-button color="primary" matTooltip="Visualizar" (click)="showReadOnly${moduleName}Form(el.id)" [hidden]="true">
+                <mat-icon>visibility</mat-icon>
+              </button>
+              <!-- } -->
+              <!-- @if (hasRole('${moduleNameSnakeUp}_REMOVER')) { -->
               <button type="button" mat-icon-button color="warn" matTooltip="Remover" (click)="confirmRemove${moduleName}(el.id)" [hidden]="false">
                 <mat-icon>delete</mat-icon>
               </button>
+              <!-- } -->
             </td>
           </ng-container>
 

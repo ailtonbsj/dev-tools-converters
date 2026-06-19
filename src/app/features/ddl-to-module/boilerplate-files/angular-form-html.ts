@@ -1,5 +1,5 @@
 import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
-import { autoComplete, inputDate, inputDateTime, inputText, maskedAsCurrency, maskedAsFloat, maskedAsNumber, staticSelect } from "../ui-form-components";
+import { autoComplete, dynamicSelect, inputDate, inputDateTime, inputText, maskedAsCurrency, maskedAsFloat, maskedAsNumber, staticSelect } from "../ui-form-components";
 import { columnToTypeJava } from "../sql-datastructs/datastructs";
 import { camelToPascalCase } from "../case-util";
 
@@ -17,6 +17,8 @@ export async function buildAngularFormHTMLFromDdl(moduleName: string, humanName:
         return maskedAsNumber(field.label, fieldName, field.lenChars);
       else if(ui === 'staticSelect')
         return staticSelect(field.label, fieldName, field.allowValues);
+      else if(ui === 'dynamicSelect')
+        return dynamicSelect(field.label, fieldName, fieldNamePascal);
       else if(ui === 'autoComplete')
         return autoComplete(field.label, fieldName, fieldNamePascal);
       else if(ui === 'inputDate')

@@ -108,15 +108,15 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
     <div class="card-header d-flex align-items-center justify-content-between">
       <span>Resultado</span>
       <div>
-        <button type="button" mat-flat-button [matMenuTriggerFor]="menu${moduleName}">
+        <button type="button" mat-flat-button [matMenuTriggerFor]="${moduleNameCamel}Menu">
           <i class="fa-solid fa-tasks"></i> Colunas
         </button>
       </div>
-      <mat-menu #menu${moduleName}="matMenu">
-        <mat-selection-list #columnList${moduleName}>
-          @for (column of columns${moduleName}; track column.id) {
+      <mat-menu #${moduleNameCamel}Menu="matMenu">
+        <mat-selection-list #${moduleNameCamel}ColumnList>
+          @for (column of ${moduleNameCamel}Columns; track column.id) {
             <mat-list-option [selected]="column.enabled" [value]="column.id"
-              (click)="onColumn${moduleName}MenuClick(columnList${moduleName}); $event.stopPropagation()">
+              (click)="onColumn${moduleName}MenuClick(${moduleNameCamel}ColumnList); $event.stopPropagation()">
               {{ column.label }}
             </mat-list-option>
           }

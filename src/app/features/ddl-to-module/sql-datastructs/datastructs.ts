@@ -61,6 +61,9 @@ export function columnToTypeJava(col: DatabaseTableColunm, dialect: Dialect) {
       if(col.uiComponent === 'inputDate') columnType = 'LocalDate';
       else columnType = dialect === 'oracle' ? 'LocalDateTime' : 'LocalDate';
       break;
+    case 'time':
+      columnType = 'LocalTime';
+      break;
     case 'bool':
     case 'boolean':
       columnType = 'Boolean';

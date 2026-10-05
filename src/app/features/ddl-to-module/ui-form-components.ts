@@ -1,4 +1,4 @@
-export function inputText(label: string, fieldName: string, lenChars: number, isPrimaryKey = false) {
+export function inputText(label: string, fieldName: string, lenChars: number, isPrimaryKey: boolean, formRef: string) {
       const parentIdDeclaration = isPrimaryKey ? ` [hidden]="this.data.parentId"` : '';
       return `
           <!-- ${label} -->
@@ -6,7 +6,7 @@ export function inputText(label: string, fieldName: string, lenChars: number, is
             <mat-form-field appearance="outline">
               <mat-label>${label}</mat-label>
               <input matInput type="text" formControlName="${fieldName}" maxlength="${lenChars}" />
-              @if (form.controls.${fieldName}.invalid) {
+              @if (${formRef}.controls.${fieldName}.invalid) {
               <mat-error>Campo obrigatório.</mat-error>
               }
             </mat-form-field>
@@ -14,7 +14,7 @@ export function inputText(label: string, fieldName: string, lenChars: number, is
 `;
 }
 
-export function maskedAsNumber(label: string, fieldName: string, lenChars: number, isPrimaryKey = false) {
+export function maskedAsNumber(label: string, fieldName: string, lenChars: number, isPrimaryKey: boolean, formRef: string) {
       const parentIdDeclaration = isPrimaryKey ? ` [hidden]="this.data.parentId"` : '';
       return `
           <!-- ${label} -->
@@ -22,7 +22,7 @@ export function maskedAsNumber(label: string, fieldName: string, lenChars: numbe
             <mat-form-field appearance="outline">
               <mat-label>${label}</mat-label>
               <input matInput type="text" formControlName="${fieldName}" maxlength="${lenChars}" mask="0*" />
-              @if (form.controls.${fieldName}.invalid) {
+              @if (${formRef}.controls.${fieldName}.invalid) {
               <mat-error>Campo obrigatório.</mat-error>
               }
             </mat-form-field>
@@ -30,7 +30,7 @@ export function maskedAsNumber(label: string, fieldName: string, lenChars: numbe
 `;
 }
 
-export function staticSelect(label: string, fieldName: string, allowValues: string[]) {
+export function staticSelect(label: string, fieldName: string, allowValues: string[], formRef: string) {
 
   if(allowValues == null) allowValues = ['S', 'N'];
   const options = allowValues.map(val => {
@@ -50,7 +50,7 @@ export function staticSelect(label: string, fieldName: string, allowValues: stri
                     <mat-option value="S">Sim</mat-option>
                     <mat-option value="N">Não</mat-option>
                   </mat-select>
-                  @if (form.controls.${fieldName}.invalid) {
+                  @if (${formRef}.controls.${fieldName}.invalid) {
                   <mat-error>Campo obrigatório.</mat-error>
                   }
               </mat-form-field>
@@ -83,7 +83,7 @@ export function dynamicSelect(label: string, fieldName: string, fieldNamePascal:
 `;
 }
 
-export function autoComplete(label: string, fieldName: string, fieldNamePascal: string) {
+export function autoComplete(label: string, fieldName: string, fieldNamePascal: string, formRef: string) {
   return `
           <!-- ${label} -->
           <div class="fx-col-2">
@@ -111,7 +111,7 @@ export function autoComplete(label: string, fieldName: string, fieldNamePascal: 
                         }
                       }
                   </mat-autocomplete>
-                  @if (form.controls.${fieldName}.invalid) {
+                  @if (${formRef}.controls.${fieldName}.invalid) {
                       <mat-error>Campo obrigatório.</mat-error>
                   }
               </mat-form-field>
@@ -119,14 +119,14 @@ export function autoComplete(label: string, fieldName: string, fieldNamePascal: 
 `;
 }
 
-export function inputDate(label: string, fieldName: string, lenChars: number) {
+export function inputDate(label: string, fieldName: string, lenChars: number, formRef: string) {
       return `
           <!-- ${label} -->
           <div class="fx-col-2">
             <mat-form-field appearance="outline">
               <mat-label>${label}</mat-label>
               <input matInput type="date" formControlName="${fieldName}" maxlength="${lenChars}" />
-              @if (form.controls.${fieldName}.invalid) {
+              @if (${formRef}.controls.${fieldName}.invalid) {
               <mat-error>Campo obrigatório.</mat-error>
               }
             </mat-form-field>
@@ -134,14 +134,14 @@ export function inputDate(label: string, fieldName: string, lenChars: number) {
 `;
 }
 
-export function inputDateTime(label: string, fieldName: string, lenChars: number) {
+export function inputDateTime(label: string, fieldName: string, lenChars: number, formRef: string) {
       return `
           <!-- ${label} -->
           <div class="fx-col-2">
             <mat-form-field appearance="outline">
               <mat-label>${label}</mat-label>
               <input matInput type="datetime-local" formControlName="${fieldName}" maxlength="${lenChars}" />
-              @if (form.controls.${fieldName}.invalid) {
+              @if (${formRef}.controls.${fieldName}.invalid) {
               <mat-error>Campo obrigatório.</mat-error>
               }
             </mat-form-field>
@@ -149,7 +149,7 @@ export function inputDateTime(label: string, fieldName: string, lenChars: number
 `;
 }
 
-export function maskedAsCurrency(label: string, fieldName: string, lenChars: number) {
+export function maskedAsCurrency(label: string, fieldName: string, lenChars: number, formRef: string) {
   const separator = '9'.repeat(lenChars - 3);
       return `
           <!-- ${label} -->
@@ -159,7 +159,7 @@ export function maskedAsCurrency(label: string, fieldName: string, lenChars: num
               <input type="text" matInput formControlName="${fieldName}" mask="separator.2" prefix="R$ "
                 thousandSeparator="." decimalMarker="," [leadZero]="true" [allowNegativeNumbers]="false"
                 separatorLimit="${separator}" [dropSpecialCharacters]="true" />
-              @if (form.controls.${fieldName}.invalid) {
+              @if (${formRef}.controls.${fieldName}.invalid) {
               <mat-error>Campo obrigatório.</mat-error>
               }
             </mat-form-field>
@@ -167,7 +167,7 @@ export function maskedAsCurrency(label: string, fieldName: string, lenChars: num
 `;
 }
 
-export function maskedAsFloat(label: string, fieldName: string, len: number, scale: number) {
+export function maskedAsFloat(label: string, fieldName: string, len: number, scale: number, formRef: string) {
   const separator = '9'.repeat(len - scale - 1);
       return `
           <!-- ${label} -->
@@ -177,7 +177,7 @@ export function maskedAsFloat(label: string, fieldName: string, len: number, sca
               <input type="text" matInput formControlName="${fieldName}" mask="separator.${scale}"
                 thousandSeparator="" decimalMarker="," [leadZero]="true" [allowNegativeNumbers]="true"
                 separatorLimit="${separator}" [dropSpecialCharacters]="true" />
-              @if (form.controls.${fieldName}.invalid) {
+              @if (${formRef}.controls.${fieldName}.invalid) {
               <mat-error>Campo obrigatório.</mat-error>
               }
             </mat-form-field>

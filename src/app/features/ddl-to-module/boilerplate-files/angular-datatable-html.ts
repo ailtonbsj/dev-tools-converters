@@ -14,59 +14,61 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
     const fieldName = field.javaFieldName;
     const fieldNamePascal = camelToPascalCase(field.javaFieldName);
     const ui = field.uiComponent;
+    const formRef = `${moduleNameCamel}Form`;
     if(ui != null) {
       if(ui === 'maskedAsNumber')
-        return maskedAsNumber(field.label, fieldName, field.lenChars);
+        return maskedAsNumber(field.label, fieldName, field.lenChars, false, formRef);
       else if(ui === 'staticSelect')
-        return staticSelect(field.label, fieldName, field.allowValues);
+        return staticSelect(field.label, fieldName, field.allowValues, formRef);
       else if(ui === 'autoComplete')
-        return autoComplete(field.label, fieldName, fieldNamePascal);
+        return autoComplete(field.label, fieldName, fieldNamePascal, formRef);
       else if(ui === 'inputDate')
-        return inputDate(field.label, fieldName, field.lenChars);
+        return inputDate(field.label, fieldName, field.lenChars, formRef);
       else if(ui === 'inputDateTime')
-        return inputDateTime(field.label, fieldName, field.lenChars);
+        return inputDateTime(field.label, fieldName, field.lenChars, formRef);
       else if(ui === 'maskedAsCurrency')
-        return maskedAsCurrency(field.label, fieldName, field.lenChars);
+        return maskedAsCurrency(field.label, fieldName, field.lenChars, formRef);
     } else {
       if(['Integer', 'Long'].includes(javaType))
-        return maskedAsNumber(field.label, fieldName, field.lenChars);
+        return maskedAsNumber(field.label, fieldName, field.lenChars, false, formRef);
       if(['BigDecimal', 'Double', 'Float'].includes(javaType))
-        return maskedAsFloat(field.label, fieldName, field.len, field.scale);
+        return maskedAsFloat(field.label, fieldName, field.len, field.scale, formRef);
       else if(['LocalDate'].includes(javaType))
-        return inputDate(field.label, fieldName, field.lenChars);
+        return inputDate(field.label, fieldName, field.lenChars, formRef);
       else if(['LocalDateTime'].includes(javaType))
-        return inputDateTime(field.label, fieldName, field.lenChars);
+        return inputDateTime(field.label, fieldName, field.lenChars, formRef);
     }
-    return inputText(field.label, fieldName, field.lenChars);
+    return inputText(field.label, fieldName, field.lenChars, false, formRef);
   });
 
   const tableColumns = columns.map(column => {
     const colName = column.javaFieldName;
     const ui = column.uiComponent;
     const javaType = columnToTypeJava(column, dialect);
+    const sortRef = `sorts${moduleName}`;
 
     if(ui != null) {
       if(ui === 'maskedAsNumber')
-        return inputTextColumn(column.label, colName);
+        return inputTextColumn(column.label, colName, sortRef);
       else if(ui === 'autoComplete')
-        return inputTextColumn(column.label, colName);
+        return inputTextColumn(column.label, colName, sortRef);
       else if(ui === 'inputDate')
-        return inputDateColumn(column.label, colName);
+        return inputDateColumn(column.label, colName, sortRef);
       else if(ui === 'inputDateTime')
-        return inputDateTimeColumn(column.label, colName);
+        return inputDateTimeColumn(column.label, colName, sortRef);
       else if(ui === 'maskedAsCurrency')
-        return maskedAsCurrencyColumn(column.label, colName);
+        return maskedAsCurrencyColumn(column.label, colName, sortRef);
       else if(ui === 'staticSelect')
-        return staticSelectColumn(column.label, colName);
+        return staticSelectColumn(column.label, colName, sortRef);
     } else {
       if(['Integer', 'Long'].includes(javaType))
-        return inputTextColumn(column.label, colName);
+        return inputTextColumn(column.label, colName, sortRef);
       else if(['LocalDate'].includes(javaType))
-        return inputDateColumn(column.label, colName);
+        return inputDateColumn(column.label, colName, sortRef);
       else if(['LocalDateTime'].includes(javaType))
-        return inputDateTimeColumn(column.label, colName);
+        return inputDateTimeColumn(column.label, colName, sortRef);
     }
-    return inputTextColumn(column.label, colName);
+    return inputTextColumn(column.label, colName, sortRef);
   });
 
   return `
@@ -76,7 +78,7 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
       <h1>Consulta ${humanName}</h1>
     </div>
     <div class="card-body">
-      <form [formGroup]="${moduleNameCamel}form" (ngSubmit)="onSubmit${moduleName}()">
+      <form [formGroup]="${moduleNameCamel}Form" (ngSubmit)="onSubmit${moduleName}()">
 
         <div class="fx-grid">
           ${formFields.join('\n')}
@@ -169,14 +171,14 @@ export async function buildAngularDataTableHTMLFromDdl(moduleName: string, human
             </td>
           </ng-container>
 
-          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-header-row *matHeaderRowDef="displayed${moduleName}Columns"></tr>
           <tr mat-row *matRowDef="let row; columns: displayed${moduleName}Columns"></tr>
-          <tr mat-footer-row *matFooterRowDef="display${moduleName}Footer" [hidden]="display${moduleName}Footer.length === 0"></tr>
+          <tr mat-footer-row *matFooterRowDef="${moduleNameCamel}DisplayFooter" [hidden]="${moduleNameCamel}DisplayFooter.length === 0"></tr>
         </table>
       </div>
 
       <mat-paginator [length]="${moduleNameCamel}Page.totalElements" [pageSize]="${moduleNameCamel}Page.size" [pageIndex]="${moduleNameCamel}Page.number"
-        [showFirstLastButtons]="true" [pageSizeOptions]="[5, 10, 20, 50, 100]" (page)="on${moduleName}PageChange($event)"
+        [showFirstLastButtons]="true" [pageSizeOptions]="[5, 10, 20, 50, 100]" (page)="onPage${moduleName}Change($event)"
         aria-label="Selecione a página" class="pagination-bottom-border">
       </mat-paginator>
 

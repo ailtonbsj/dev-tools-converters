@@ -63,7 +63,7 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
   is${moduleName}Loading = false;
 
   ${moduleNameCamel}Datasource = new MatTableDataSource(<${moduleName}[]>[]);
-  ${moduleNameCamel}displayFooter = ['footer'];
+  ${moduleNameCamel}DisplayFooter = ['footer'];
   ${moduleNameCamel}Columns: { id: string, label: string, enabled: boolean }[] = [
     ${columnsMenuDeclaration.join('\n    ')}
   ];
@@ -82,11 +82,11 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
     sortProps: '',
   };
 
-  @ViewChild('${moduleName}Sort') sortViewChild${moduleName}: MatSort = <MatSort>{};
+  @ViewChild('sort${moduleName}') sortViewChild${moduleName}: MatSort = <MatSort>{};
   sorts${moduleName} = signal<{ active: string, direction: string }[]>([]);
 
   ngAfterViewInit(): void {
-    init${humanName}Datatable()
+    this.init${moduleName}Datatable()
   }
 
   onColumn${moduleName}MenuClick(list: MatSelectionList) {
@@ -95,12 +95,12 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
     this.displayed${moduleName}Columns.push('actions');
   }
 
-  onSubmit() {
+  onSubmit${moduleName}() {
     this.trimFields();
-    if (this.form.valid) {
-      this.pageCtl.pageNumber = 0;
-      this.entity = <${moduleName}>{
-        ...this.form.value as any,
+    if (this.${moduleNameCamel}Form.valid) {
+      this.page${moduleName}Ctl.pageNumber = 0;
+      this.${moduleNameCamel}Entity = <${moduleName}>{
+        ...this.${moduleNameCamel}Form.value as any,
         ...this.normalizeControlsFloat(${columns.filter(c => ['BigDecimal', 'Double', 'Float'].includes(c.javaType)).map(c => `'${c.javaFieldName}'`).join(', ')})
       };
       this.isFirst${moduleName}Search = false;
@@ -111,15 +111,15 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
 
   normalizeControlsFloat(...controls: string[]) {
     return Object.fromEntries(
-      Object.entries(this.form.controls)
+      Object.entries(this.${moduleNameCamel}Form.controls)
       .filter(c => controls.includes(c[0]) && c[1].value != '' && c[1] != null)
       .map(c => [c[0], c[1].value?.replace(/R|\\$|\\./g, '').replace(',', '.') ?? ''])
     );
   }
 
   trimFields() {
-    Object.keys(this.form.value)
-      .map(f => this.form.get(f))
+    Object.keys(this.${moduleNameCamel}Form.value)
+      .map(f => this.${moduleNameCamel}Form.get(f))
       .filter(f => typeof f?.value === 'string')
       .map(f => f?.setValue(f?.value.trim()));
   }
@@ -131,7 +131,7 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
     this.spinnerText.show('Carregando dados da tabela ...');
     try {
       const page = await firstValueFrom(this.${moduleNameCamel}Service.filter(this.${moduleNameCamel}Entity, this.page${moduleName}Ctl));
-      this.${moduleNameCamel}displayFooter = page.content?.length !== 0 ? [] : ['footer'];
+      this.${moduleNameCamel}DisplayFooter = page.content?.length !== 0 ? [] : ['footer'];
       this.${moduleNameCamel}Page = page;
       this.${moduleNameCamel}Datasource = new MatTableDataSource(this.${moduleNameCamel}Page.content);
     } catch (e: unknown) {
@@ -244,7 +244,7 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
         const item = this.sorts${moduleName}().find(o => o.active === sort.active);
         if (item) {
           if (sort.direction !== '') item.direction = sort.direction;
-          else this.sorts${moduleName}.set(this.sorts().filter(o => o.active != item.active));
+          else this.sorts${moduleName}.set(this.sorts${moduleName}().filter(o => o.active != item.active));
         } else {
           if (sort.direction !== '') {
             const sortsArr = this.sorts${moduleName}();

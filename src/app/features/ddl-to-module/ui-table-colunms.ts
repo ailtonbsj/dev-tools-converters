@@ -1,10 +1,10 @@
-export function inputTextColumn(label: string, colName: string) {
+export function inputTextColumn(label: string, colName: string, sortRef: string) {
     return `
         <!-- ${label} Column -->
         <ng-container matColumnDef="${colName}">
           <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-bold-center">
             ${label}
-            <app-sort-icon column="${colName}" [sorts]="sorts()" />
+            <app-sort-icon column="${colName}" [sorts]="${sortRef}()" />
           </th>
           <td mat-cell *matCellDef="let el" class="text-center align-middle fs-6">
             {{ el.${colName} }}
@@ -15,13 +15,13 @@ export function inputTextColumn(label: string, colName: string) {
         </ng-container>`;
 }
 
-export function inputDateColumn(label: string, colName: string) {
+export function inputDateColumn(label: string, colName: string, sortRef: string) {
     return `
         <!-- ${label} Column -->
         <ng-container matColumnDef="${colName}">
           <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-bold-center">
             ${label}
-            <app-sort-icon column="${colName}" [sorts]="sorts()" />
+            <app-sort-icon column="${colName}" [sorts]="${sortRef}()" />
           </th>
           <td mat-cell *matCellDef="let el" class="text-center align-middle fs-6">
             {{ el.${colName} | date : 'shortDate' }}
@@ -32,13 +32,13 @@ export function inputDateColumn(label: string, colName: string) {
         </ng-container>`;
 }
 
-export function inputDateTimeColumn(label: string, colName: string) {
+export function inputDateTimeColumn(label: string, colName: string, sortRef: string) {
     return `
         <!-- ${label} Column -->
         <ng-container matColumnDef="${colName}">
           <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-bold-center">
             ${label}
-            <app-sort-icon column="${colName}" [sorts]="sorts()" />
+            <app-sort-icon column="${colName}" [sorts]="${sortRef}()" />
           </th>
           <td mat-cell *matCellDef="let el" class="text-center align-middle fs-6">
             {{ el.${colName} | date : 'short' }}
@@ -49,13 +49,13 @@ export function inputDateTimeColumn(label: string, colName: string) {
         </ng-container>`;
 }
 
-export function maskedAsCurrencyColumn(label: string, colName: string) {
+export function maskedAsCurrencyColumn(label: string, colName: string, sortRef: string) {
     return `
         <!-- ${label} Column -->
         <ng-container matColumnDef="${colName}">
           <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-bold-center">
             ${label}
-            <app-sort-icon column="${colName}" [sorts]="sorts()" />
+            <app-sort-icon column="${colName}" [sorts]="${sortRef}()" />
           </th>
           <td mat-cell *matCellDef="let el" class="text-center align-middle fs-6">
             {{ el.${colName} | currency }}
@@ -66,13 +66,13 @@ export function maskedAsCurrencyColumn(label: string, colName: string) {
         </ng-container>`;
 }
 
-export function staticSelectColumn(label: string, colName: string) {
+export function staticSelectColumn(label: string, colName: string, sortRef: string) {
     return `
         <!-- ${label} Column -->
         <ng-container matColumnDef="${colName}">
           <th mat-header-cell *matHeaderCellDef mat-sort-header class="th-bold-center">
             ${label}
-            <app-sort-icon column="${colName}" [sorts]="sorts()" />
+            <app-sort-icon column="${colName}" [sorts]="${sortRef}()" />
           </th>
           <td mat-cell *matCellDef="let el" class="text-center align-middle fs-6">
             @if(el.${colName} === 'S') {

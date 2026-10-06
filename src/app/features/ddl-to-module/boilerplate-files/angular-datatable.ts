@@ -225,9 +225,9 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
   async confirmRemove${moduleName}(id: number) {
     try {
       if(await firstValueFrom(this.confirmDelete())) {
-        await firstValueFrom(this.service.destroy(id));
+        await firstValueFrom(this.${moduleNameCamel}Service.destroy(id));
         this.alertSuccess(\`${humanName} com ID \${id} excluído com sucesso!\`);
-        this.search();
+        this.search${moduleName}();
       }
     } catch (e: unknown) {
       if (e instanceof HttpErrorResponse) {

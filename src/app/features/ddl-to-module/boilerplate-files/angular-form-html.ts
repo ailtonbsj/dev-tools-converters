@@ -1,10 +1,12 @@
 import { DatabaseTable, Dialect } from "../sql-datastructs/database.model";
 import { autoComplete, dynamicSelect, inputDate, inputDateTime, inputText, maskedAsCurrency, maskedAsFloat, maskedAsNumber, staticSelect } from "../ui-form-components";
 import { columnToTypeJava } from "../sql-datastructs/datastructs";
-import { camelToPascalCase } from "../case-util";
+import { camelToPascalCase, pascalToCamelCase } from "../case-util";
 
 export async function buildAngularFormHTMLFromDdl(moduleName: string, humanName: string, schema: DatabaseTable, dialect: Dialect) {
   const columns = schema.columns;
+  const moduleNameCamel = pascalToCamelCase(moduleName);
+  const formRef = `${moduleNameCamel}Form`;
 
   const formFields = columns.map(field => {
     const javaType = columnToTypeJava(field, dialect);
@@ -14,30 +16,30 @@ export async function buildAngularFormHTMLFromDdl(moduleName: string, humanName:
 
     if(ui != null) {
       if(ui === 'maskedAsNumber')
-        return maskedAsNumber(field.label, fieldName, field.lenChars);
+        return maskedAsNumber(field.label, fieldName, field.lenChars, false, formRef);
       else if(ui === 'staticSelect')
-        return staticSelect(field.label, fieldName, field.allowValues);
+        return staticSelect(field.label, fieldName, field.allowValues, formRef);
       else if(ui === 'dynamicSelect')
-        return dynamicSelect(field.label, fieldName, fieldNamePascal);
+        return dynamicSelect(field.label, fieldName, fieldNamePascal, formRef);
       else if(ui === 'autoComplete')
-        return autoComplete(field.label, fieldName, fieldNamePascal);
+        return autoComplete(field.label, fieldName, fieldNamePascal, formRef);
       else if(ui === 'inputDate')
-        return inputDate(field.label, fieldName, field.lenChars);
+        return inputDate(field.label, fieldName, field.lenChars, formRef);
       else if(ui === 'inputDateTime')
-        return inputDateTime(field.label, fieldName, field.lenChars);
+        return inputDateTime(field.label, fieldName, field.lenChars, formRef);
       else if(ui === 'maskedAsCurrency')
-        return maskedAsCurrency(field.label, fieldName, field.lenChars);
+        return maskedAsCurrency(field.label, fieldName, field.lenChars, formRef);
     } else {
       if(['Integer', 'Long'].includes(javaType))
-        return maskedAsNumber(field.label, fieldName, field.lenChars);
+        return maskedAsNumber(field.label, fieldName, field.lenChars, false, formRef);
       if(['BigDecimal', 'Double', 'Float'].includes(javaType))
-        return maskedAsFloat(field.label, fieldName, field.len, field.scale);
+        return maskedAsFloat(field.label, fieldName, field.len, field.scale, formRef);
       else if(['LocalDate'].includes(javaType))
-        return inputDate(field.label, fieldName, field.lenChars);
+        return inputDate(field.label, fieldName, field.lenChars, formRef);
       else if(['LocalDateTime'].includes(javaType))
-        return inputDateTime(field.label, fieldName, field.lenChars);
+        return inputDateTime(field.label, fieldName, field.lenChars, formRef);
     }
-    return inputText(field.label, fieldName, field.lenChars);
+    return inputText(field.label, fieldName, field.lenChars, false, formRef);
   });
 
   return `

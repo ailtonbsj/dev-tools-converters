@@ -58,7 +58,7 @@ export function staticSelect(label: string, fieldName: string, allowValues: stri
 `;
 }
 
-export function dynamicSelect(label: string, fieldName: string, fieldNamePascal: string) {
+export function dynamicSelect(label: string, fieldName: string, fieldNamePascal: string, formRef: string) {
   return `
           <!-- ${label} -->
           <div class="fx-col-4">
@@ -75,7 +75,7 @@ export function dynamicSelect(label: string, fieldName: string, fieldNamePascal:
                   <mat-option [disabled]="true">Nenhum ${label} disponível.</mat-option>
                 }
               </mat-select>
-              @if (form.controls.${fieldName}.invalid) {
+              @if (${formRef}.controls.${fieldName}.invalid) {
               <mat-error>Campo obrigatório.</mat-error>
               }
             </mat-form-field>

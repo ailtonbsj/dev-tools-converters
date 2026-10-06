@@ -4,7 +4,7 @@ import { DatabaseTable, DatabaseTableColunm, Dialect } from "../sql-datastructs/
 
 export async function buildTestResourceFromDdl(moduleName: string, humanName: string, schema: DatabaseTable, dialect: Dialect) {
   const columns = schema.columns;
-  const pluralKebabName = plural(pascalToKebabCase(moduleName));
+  const pluralKebabName = pascalToKebabCase(plural(moduleName));
 
   const colStr = columns.filter(col => !col.isPrimary).find(col => col.javaType === 'String') ?? <DatabaseTableColunm>{ column: 'field' };
   const fieldStr = colStr.javaFieldName;

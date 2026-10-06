@@ -4,7 +4,7 @@ import { pascalToKebabCase } from "../case-util";
 import { columnToTypeTypeScript } from "../sql-datastructs/datastructs";
 
 export async function buildAngularServiceFromDdl(moduleName: string, schema: DatabaseTable, dialect: Dialect): Promise<string> {
-  const pluralKebabName = plural(pascalToKebabCase(moduleName));
+  const pluralKebabName = pascalToKebabCase(plural(moduleName));
   const columns = schema.columns;
   const primaries = columns.filter(col => col.isPrimary);
 

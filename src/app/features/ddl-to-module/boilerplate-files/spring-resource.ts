@@ -4,7 +4,7 @@ import { columnToFieldJava, columnToTypeJava } from "../sql-datastructs/datastru
 import { pascalToKebabCase, pascalToSnakeCase } from "../case-util";
 
 export async function buildResourceFromDdl(moduleName: string, humanName: string, schema: DatabaseTable, dialect: Dialect) {
-  const pluralKebabName = plural(pascalToKebabCase(moduleName));
+  const pluralKebabName = pascalToKebabCase(plural(moduleName));
   const columns = schema.columns;
   const primaries = columns.filter(col => col.isPrimary);
 

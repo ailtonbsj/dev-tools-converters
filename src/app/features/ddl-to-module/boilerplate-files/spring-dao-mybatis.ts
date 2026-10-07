@@ -87,6 +87,9 @@ public interface ${moduleName}DAO {
     """)
     List<${moduleName}> findAll();
 
+    @Select("select coalesce(max(num), 0) + 1 ${schema.schema}.${schema.table}")
+    Long findNextId();
+
     @Insert("""
       insert into ${schema.schema}.${schema.table} values (
         ${insertPredicate.join(', ')}

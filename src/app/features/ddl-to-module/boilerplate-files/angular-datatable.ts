@@ -17,7 +17,7 @@ import { MatTableDataSource } from '@angular/material/table';
 import { MaterialModule } from 'src/app/shared/material.module';
 import { Page } from 'src/app/shared/models/page.model';
 import { PageEvent } from '@angular/material/paginator';
-import { PageControl } from 'src/app/shared/models/page-control.model';
+import { Direction, Order, Pageable } from 'src/app/shared/models/pageable.model';
 import { firstValueFrom, Observable } from 'rxjs';
 import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { SpinnerTextService } from 'src/app/shared/services/spinner-text.service';
@@ -75,15 +75,10 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
 
   ${moduleNameCamel}Entity = <${moduleName}>{};
   ${moduleNameCamel}Page = <Page<${moduleName}>>{ size: 10 };
-  page${moduleName}Ctl: PageControl = <PageControl>{
-    pageNumber: 0,
-    pageSize: 10,
-    directions: '',
-    sortProps: '',
-  };
+  page${moduleName}Ctl = { page: 0, size: 10 } as Pageable;
 
   @ViewChild('sort${moduleName}') sortViewChild${moduleName}: MatSort = <MatSort>{};
-  sorts${moduleName} = signal<{ active: string, direction: string }[]>([]);
+  sorts${moduleName} = signal<{ active: string, direction: Direction }[]>([]);
 
   ngAfterViewInit(): void {
     this.init${moduleName}Datatable()
@@ -98,7 +93,7 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
   onSubmit${moduleName}() {
     this.trimFields();
     if (this.${moduleNameCamel}Form.valid) {
-      this.page${moduleName}Ctl.pageNumber = 0;
+      this.page${moduleName}Ctl.page = 0;
       this.${moduleNameCamel}Entity = <${moduleName}>{
         ...this.${moduleNameCamel}Form.value as any,
         ...this.normalizeControlsFloat(${columns.filter(c => ['BigDecimal', 'Double', 'Float'].includes(c.javaType)).map(c => `'${c.javaFieldName}'`).join(', ')})
@@ -112,8 +107,8 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
   normalizeControlsFloat(...controls: string[]) {
     return Object.fromEntries(
       Object.entries(this.${moduleNameCamel}Form.controls)
-      .filter(c => controls.includes(c[0]) && c[1].value != '' && c[1] != null)
-      .map(c => [c[0], c[1].value?.replace(/R|\\$|\\./g, '').replace(',', '.') ?? ''])
+      .filter(([key, ctl]) => controls.includes(key) && ctl.value != '' && ctl != null)
+      .map(([key, ctl]) => [key, typeof ctl.value === 'string' ? ctl.value?.replace(/R|\\$|\\./g, '').replace(',', '.') : ''])
     );
   }
 
@@ -149,8 +144,8 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
   }
 
   onPage${moduleName}Change(event: PageEvent) {
-    this.page${moduleName}Ctl.pageNumber = event.pageIndex;
-    this.page${moduleName}Ctl.pageSize = event.pageSize;
+    this.page${moduleName}Ctl.page = event.pageIndex;
+    this.page${moduleName}Ctl.size = event.pageSize;
     this.search${moduleName}();
   }
 
@@ -205,7 +200,7 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
       data
     });
     const item = await firstValueFrom<${moduleName}>(dialogRef.afterClosed());
-    if(item != null) this.search();
+    if(item != null) this.search${moduleName}();
   }
 
   confirmDelete(): Observable<boolean> {
@@ -248,15 +243,13 @@ export class ${moduleName}DataTableComponent implements AfterViewInit {
         } else {
           if (sort.direction !== '') {
             const sortsArr = this.sorts${moduleName}();
-            sortsArr.push(sort);
+            sortsArr.push(sort as { active: string; direction: Direction; });
             this.sorts${moduleName}.set(sortsArr);
           }
         }
-        const sortProps = this.sorts${moduleName}().map(o => o.active).join(',');
-        const directions = this.sorts${moduleName}().map(o => o.direction).join(',');
-        if (sortProps !== this.page${moduleName}Ctl.sortProps || directions !== this.page${moduleName}Ctl.directions) {
-          this.page${moduleName}Ctl.sortProps = sortProps;
-          this.page${moduleName}Ctl.directions = directions;
+        const sortDirection = this.sorts${moduleName}().map(o => \`\${o.active},\${o.direction}\` as Order);
+        if(sortDirection.join(',') !== this.page${moduleName}Ctl.sort?.join(',')) {
+          this.page${moduleName}Ctl.sort = sortDirection;
           this.search${moduleName}();
         }
       }

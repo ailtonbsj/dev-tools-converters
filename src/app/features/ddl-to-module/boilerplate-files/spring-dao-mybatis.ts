@@ -20,7 +20,8 @@ export async function buildMyBatisDAOFromDdl(moduleName: string, schema: Databas
   const primariesField = primaries.length === 1 ?
     primaries.map(p => `${columnToTypeJava(p, dialect) } id`) :
     primaries.map(p => `${columnToTypeJava(p, dialect) } ${columnToFieldJava(p.column)}`);
-  const insertPredicate = columns.map(col => `#{${columnToFieldJava(col.column)}}`);
+  const insertColumnPredicate = columns.map(col => col.column);
+  const insertValuePredicate = columns.map(col => `#{${columnToFieldJava(col.column)}}`);
   const updatePredicate = notPrimaries.map(col => {
     const space = ''.padStart(maxColLength - col.column.length + 1);
     return `${col.column}${space}= #{${columnToFieldJava(col.column)}}`;
@@ -91,8 +92,10 @@ public interface ${moduleName}DAO {
     Long findNextId();
 
     @Insert("""
-      insert into ${schema.schema}.${schema.table} values (
-        ${insertPredicate.join(', ')}
+      insert into ${schema.schema}.${schema.table} (
+        ${insertColumnPredicate.join(', ')}
+      ) values (
+        ${insertValuePredicate.join(', ')}
       )
     """)
     int insert(${moduleName} model);
